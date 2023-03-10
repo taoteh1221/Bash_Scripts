@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo apt install git
+sudo apt install git make
 
 mkdir -p ~/builds
 
