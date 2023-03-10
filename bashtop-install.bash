@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo apt install git make
+sudo apt install git make -y
 
 mkdir -p ~/builds
 
