@@ -11,10 +11,14 @@
 ######################################
 
 
-# Set boot partition location
+# Set BOOT partition location
+# In Ubuntu "installation type" install screen, set:
+# /dev/YOUR_BOOT_DEVICE_PARTITION_HERE as ext4, format it, and mount as "/boot"
 BOOT_PART="/dev/YOUR_BOOT_DEVICE_PARTITION_HERE"
 
-# Set root partition location
+# Set BOOT partition location
+# In Ubuntu "installation type" install screen, set:
+# /dev/mapper/vgroot-lvroot as ext4, format it, and mount as "/"
 ROOTFS_PART="/dev/YOUR_ROOT_DEVICE_PARTITION_HERE"
 
 
