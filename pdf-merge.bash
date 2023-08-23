@@ -109,7 +109,7 @@ SCRIPT_NAME=$(basename "$SCRIPT_LOCATION")
 if [ "$1" != "" ] && [ "$APP_RECURSE" != "1" ]; then
 APP_RECURSE=1
 export APP_RECURSE=$APP_RECURSE
-printf "%s\n" $1 | $SCRIPT_LOCATION
+printf "%s\n" $1 | "$SCRIPT_LOCATION"
 exit
 fi
 
