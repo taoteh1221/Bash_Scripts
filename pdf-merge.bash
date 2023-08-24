@@ -21,10 +21,10 @@
  
 # Auto-selecting single / multi sub-option examples (MULTI SUB-OPTIONS #MUST# BE IN QUOTES!):
  
-# ./pdf-merge.bash "/path/to/pdf/files 1"
+# ./pdf-merge.bash "/path/to/pdf/files/ 1"
 # (merges FIRST PAGE of every PDF file in the directory, into qpdf_combined_docs_[DATE].pdf)
 
-# ./pdf-merge.bash "/path/to/pdf/files all"
+# ./pdf-merge.bash "/path/to/pdf/files/ all"
 # (merges ALL PAGES of every PDF file in the directory, into qpdf_combined_docs_[DATE].pdf)
 
 ########################################################################################################################
@@ -136,9 +136,12 @@ fi
 echo " "
 
 if [ ! -d "$PDF_DIR" ]; then
-echo "The defined PDF directory '$PDF_DIR' does not exist yet."
-echo "Please create this directory structure before running this script."
+echo "${yellow}The defined PDF directory '$PDF_DIR' does not exist yet ${red}(MAKE SURE THERE ARE NO SPACES IN FOLDER NAMES)${reset}${yellow}."
+echo " "
+echo "Please create this directory structure before running this script.${reset}"
+echo " "
 echo "Exiting..."
+echo " "
 exit
 fi
 
@@ -153,7 +156,7 @@ echo " "
 read INC_PAGES
 echo " "
 
-cd $PDF_DIR
+cd "$PDF_DIR"
 
 # Remove any previous combined docs file
 rm qpdf_combined_docs_$DATE.pdf > /dev/null 2>&1
