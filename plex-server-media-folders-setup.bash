@@ -3,13 +3,16 @@
 
 # Configs
 
-BASE_DIR="/media/taoteh1221/1tb_HDD_Disk/Plex-Videos"
+BASE_DIR="/media/taoteh1221/Secondary/Plex-Videos"
 
 USER_GROUP="$USER"
 
 
 # Add user to plex group
 sudo usermod -a -G $USER_GROUP plex
+
+# Add plex to user group
+sudo usermod -a -G plex $USER_GROUP
 
 
 # Create the directory structure
