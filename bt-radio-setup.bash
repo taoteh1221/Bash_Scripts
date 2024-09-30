@@ -1,9 +1,11 @@
 #!/bin/bash
 
+
 COPYRIGHT_YEARS="2022-2024"
 
 # Version of this script
-APP_VERSION="1.09.3" # 2023/AUGUST/24TH
+APP_VERSION="1.11.0" # 2024/SEPTEMBER/29TH
+
 
 ########################################################################################################################
 ########################################################################################################################
@@ -12,7 +14,7 @@ APP_VERSION="1.09.3" # 2023/AUGUST/24TH
 
 # https://github.com/taoteh1221/Bluetooth_Internet_Radio
 
-# Fully automated setup of bluetooth and an internet radio player (PyRadio), on a headless RaspberryPi,
+# Fully automated setup of bluetooth, internet radio player (PyRadio), local music files player (mplayer), on a headless RaspberryPi,
 # connecting to a stereo system's bluetooth receiver (bash script, chmod +x it to run).
 
 # To install automatically on Ubuntu / RaspberryPi OS / Armbian, copy => paste => run the command below in a
@@ -38,22 +40,26 @@ APP_VERSION="1.09.3" # 2023/AUGUST/24TH
 # (checks for / confirms script upgrade)
  
 # ~/radio "7 1 b3"
-# ~/radio "play 1 b3"
-# (plays pyradio default playlist 3rd station in background)
+# ~/radio "internet 1 b3"
+# (plays default INTERNET playlist in background, 3rd station)
  
-# ~/radio 8
-# ~/radio stop
-# (stops pyradio playback)
+# ~/radio "9 1 bs"
+# ~/radio "local 1 bs"
+# (plays default LOCAL music folder [RECURSIVELY] in background, shuffling)
  
-# ~/radio "10 XX:XX:XX:XX:XX:XX"
+# ~/radio 10
+# ~/radio off
+# (stops audio playback)
+ 
+# ~/radio "12 XX:XX:XX:XX:XX:XX"
 # ~/radio "connect XX:XX:XX:XX:XX:XX"
 # (connect bluetooth device by mac address)
  
-# ~/radio "11 XX:XX:XX:XX:XX:XX"
+# ~/radio "13 XX:XX:XX:XX:XX:XX"
 # ~/radio "remove XX:XX:XX:XX:XX:XX"
 # (remove bluetooth device by mac address)
  
-# ~/radio "12 3"
+# ~/radio "14 3"
 # ~/radio "devices paired"
 # (shows paired bluetooth devices)
 
@@ -77,31 +83,37 @@ convert="$1"
 # (helps avoid mis-converting PRIMARY options [if we add a lot in the future])
 
 # devices internal
-convert=$(echo "$convert" | sed -r "s/devices internal/12 1/g")
+convert=$(echo "$convert" | sed -r "s/devices internal/14 1/g")
 
 # devices available
-convert=$(echo "$convert" | sed -r "s/devices available/12 2/g")
+convert=$(echo "$convert" | sed -r "s/devices available/14 2/g")
 
 # devices paired
-convert=$(echo "$convert" | sed -r "s/devices paired/12 3/g")
+convert=$(echo "$convert" | sed -r "s/devices paired/14 3/g")
 
 # devices trusted
-convert=$(echo "$convert" | sed -r "s/devices trusted/12 4/g")
+convert=$(echo "$convert" | sed -r "s/devices trusted/14 4/g")
 
 # upgrade
 convert=$(echo "$convert" | sed -r "s/upgrade/1/g")
 
-# play
-convert=$(echo "$convert" | sed -r "s/play/7/g")
+# internet
+convert=$(echo "$convert" | sed -r "s/internet/7/g")
 
-# stop
-convert=$(echo "$convert" | sed -r "s/stop/8/g")
+# local
+convert=$(echo "$convert" | sed -r "s/local/9/g")
+
+# off
+convert=$(echo "$convert" | sed -r "s/off/10/g")
+
+# stop (backwards compatibility)
+convert=$(echo "$convert" | sed -r "s/stop/10/g")
 
 # connect
-convert=$(echo "$convert" | sed -r "s/connect/10/g")
+convert=$(echo "$convert" | sed -r "s/connect/12/g")
 
 # remove
-convert=$(echo "$convert" | sed -r "s/remove/11/g")
+convert=$(echo "$convert" | sed -r "s/remove/13/g")
 
 
      if [ ! -f ~/radio ]; then
@@ -116,6 +128,21 @@ convert=$(echo "$convert" | sed -r "s/remove/11/g")
 
 
 fi
+
+
+######################################
+
+
+ISSUES_URL="https://github.com/taoteh1221/Bluetooth_Internet_Radio/issues"
+
+echo " "
+echo "PLEASE REPORT ANY ISSUES HERE: $ISSUES_URL"
+echo " "
+echo "Initializing, please wait..."
+echo " "
+
+
+######################################
 
 
 # EXPLICITLY set any dietpi paths 
@@ -142,9 +169,12 @@ export PATH=$PATH
 fi
 
 
+# In case we are recursing back into this script (for filtering params etc),
+# flag export of a few more basic sys vars if present
+
+# Authentication of X sessions
 export XAUTHORITY=~/.Xauthority 
-				
-# Export current working directory, in case we are calling another bash instance in this script
+# Working directory
 export PWD=$PWD
 
 
@@ -157,6 +187,9 @@ TIME=$(date '+%H:%M:%S')
 
 # Current timestamp
 CURRENT_TIMESTAMP=$(date +%s)
+
+# Are we running on Ubuntu OS?
+IS_UBUNTU=$(cat /etc/os-release | grep "PRETTY_NAME" | grep "Ubuntu")
 
 
 # If a symlink, get link target for script location
@@ -171,30 +204,8 @@ fi
 SCRIPT_PATH="$( cd -- "$(dirname "$SCRIPT_LOCATION")" >/dev/null 2>&1 ; pwd -P )"
 SCRIPT_NAME=$(basename "$SCRIPT_LOCATION")
 
-
-# pulseaudio's FULL PATH (to run checks later)
-PULSEAUDIO_PATH=$(which pulseaudio)
-
-# bluetooth-autoconnect's FULL PATH (to run checks OR install later)
-BT_AUTOCONNECT_PATH="${SCRIPT_PATH}/bluetooth-autoconnect.py"
-
-# Get logged-in username (if sudo, this works best with logname)
-TERMINAL_USERNAME=$(logname)
-
-
-# If logname doesn't work, use the $SUDO_USER or $USER global var
-if [ -z "$TERMINAL_USERNAME" ]; then
-
-    if [ -z "$SUDO_USER" ]; then
-    TERMINAL_USERNAME=$USER
-    else
-    TERMINAL_USERNAME=$SUDO_USER
-    fi
-
-fi
-
-
-######################################
+# Parent directory of the script location
+PARENT_DIR="$(dirname "$SCRIPT_LOCATION")"
 
 
 # Get the operating system and version
@@ -229,34 +240,57 @@ else
 fi
 
 
+# For setting user agent header in curl, since some API servers !REQUIRE! a set user agent OR THEY BLOCK YOU
+CUSTOM_CURL_USER_AGENT_HEADER="User-Agent: Curl (${OS}/$VER; compatible;)"
+
+
 ######################################
 
 
-# Setup color coding
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+
 if hash tput > /dev/null 2>&1; then
+
 red=`tput setaf 1`
 green=`tput setaf 2`
 yellow=`tput setaf 3`
 blue=`tput setaf 4`
 magenta=`tput setaf 5`
 cyan=`tput setaf 6`
+
 reset=`tput sgr0`
+
 else
+
 red=``
 green=``
 yellow=``
 blue=``
 magenta=``
 cyan=``
+
 reset=``
+
 fi
 
 
 ######################################
 
 
-echo " "
+# Get logged-in username (if sudo, this works best with logname)
+TERMINAL_USERNAME=$(logname)
+
+# If logname doesn't work, use the $SUDO_USER or $USER global var
+if [ -z "$TERMINAL_USERNAME" ]; then
+
+    if [ -z "$SUDO_USER" ]; then
+    TERMINAL_USERNAME=$USER
+    else
+    TERMINAL_USERNAME=$SUDO_USER
+    fi
+
+fi
+
 
 # Quit if ACTUAL USERNAME is root
 if [ "$TERMINAL_USERNAME" == "root" ]; then 
@@ -269,17 +303,243 @@ if [ "$TERMINAL_USERNAME" == "root" ]; then
 fi
 
 
+######################################
+
+
 if [ -f "/etc/debian_version" ]; then
-echo "${cyan}Your system has been detected as Debian-based, which is compatible with this automated installation script."
+
+echo "${cyan}Your system has been detected as Debian-based, which is compatible with this automated script."
+
+# USE 'apt-get' IN SCRIPTING!
+# https://askubuntu.com/questions/990823/apt-gives-unstable-cli-interface-warning
+PACKAGE_INSTALL="sudo apt-get install"
+PACKAGE_REMOVE="sudo apt-get --purge remove"
+
 echo " "
 echo "Continuing...${reset}"
 echo " "
+
+elif [ -f "/etc/redhat-release" ]; then
+
+echo "${cyan}Your system has been detected as Redhat-based, which is ${red}CURRENTLY STILL IN DEVELOPMENT TO EVENTUALLY BE (BUT IS *NOT* YET) ${cyan}compatible with this automated script."
+
+PACKAGE_INSTALL="sudo yum install"
+PACKAGE_REMOVE="sudo yum remove"
+
+echo " "
+echo "Continuing...${reset}"
+echo " "
+
 else
-echo "${red}Your system has been detected as NOT BEING Debian-based. Your system is NOT compatible with this automated installation script."
-echo " "
-echo "Exiting...${reset}"
-echo " "
-exit
+
+echo "${red}Your system has been detected as NOT BEING Debian-based OR Redhat-based. Your system is NOT compatible with this automated script."
+
+echo "${yellow} "
+read -n1 -s -r -p $"PRESS ANY KEY to exit..." key
+echo "${reset} "
+
+    if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+    echo " "
+    echo "${green}Exiting...${reset}"
+    echo " "
+    exit
+    fi
+
+fi
+
+
+######################################
+
+
+# Path to app (CROSS-DISTRO-COMPATIBLE)
+get_app_path() {
+
+app_path_result=$(whereis -b $1)
+app_path_result="${app_path_result#*$1: }"
+app_path_result=${app_path_result%%[[:space:]]*}
+app_path_result="${app_path_result#*$1:}"
+     
+     
+     # If we have found the library already installed on this system
+     if [ ! -z "$app_path_result" ]; then
+     
+     PATH_CHECK_REENTRY="" # Reset reentry flag
+     
+     echo "$app_path_result"
+     
+     # If we are re-entering from the else statement below, quit trying, with warning sent to terminal (NOT function output)
+     elif [ ! -z "$PATH_CHECK_REENTRY" ]; then
+     
+     PATH_CHECK_REENTRY="" # Reset reentry flag
+     
+     echo "${red} " > /dev/tty
+     echo "System path for '$1' NOT FOUND, even AFTER package installation attempts, giving up." > /dev/tty
+     echo " " > /dev/tty
+
+     echo "*PLEASE* REPORT THIS ISSUE HERE, *IF THIS SCRIPT FAILS TO RUN PROPERLY FROM THIS POINT ONWARD*:" > /dev/tty
+     echo " " > /dev/tty
+     echo "$ISSUES_URL" > /dev/tty
+     echo "${reset} " > /dev/tty
+     
+     echo "${yellow} " > /dev/tty
+     read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+     echo "${reset} " > /dev/tty
+     
+         if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+         echo " " > /dev/tty
+         echo "${green}Continuing...${reset}" > /dev/tty
+         echo " " > /dev/tty
+         fi
+     
+     echo " " > /dev/tty
+     
+     # If library not found, attempt package installation
+     else
+     
+     
+          # Handle package name exceptions...
+          
+          # bsdtar on Ubuntu 18.x and higher
+          if [ "$1" == "bsdtar" ] && [ -f "/etc/debian_version" ]; then
+          SYS_PACK="libarchive-tools"
+          
+          # xdg-user-dir (debian package name differs slightly)
+          elif [ "$1" == "xdg-user-dir" ] && [ -f "/etc/debian_version" ]; then
+          SYS_PACK="xdg-user-dirs"
+
+          # rsyslogd (debian package name differs slightly)
+          elif [ "$1" == "rsyslogd" ] && [ -f "/etc/debian_version" ]; then
+          SYS_PACK="rsyslog"
+
+          else
+          SYS_PACK="$1"
+          fi
+          
+          
+          # Terminal alert for good UX...
+          if [ "$1" != "$SYS_PACK" ]; then
+          echo " " > /dev/tty
+          echo "${yellow}'$1' is found WITHIN '$SYS_PACK', changing package request accordingly...${reset}" > /dev/tty
+          echo " " > /dev/tty
+          fi
+
+
+     echo " " > /dev/tty
+     echo "${cyan}Installing required component '$SYS_PACK', please wait...${reset}" > /dev/tty
+     echo " " > /dev/tty
+     
+     sleep 3
+               
+     $PACKAGE_INSTALL $SYS_PACK -y > /dev/tty
+     
+     
+          # If UBUNTU (*NOT* any other OS) snap was detected on the system, try a snap install too
+          # (as they moved some libs over to snap / snap-only? now)
+          if [ ! -z "$UBUNTU_SNAP_PATH" ]; then
+          
+          UBUNTU_SNAP_INSTALL="sudo $UBUNTU_SNAP_PATH install"
+          
+          echo " " > /dev/tty
+          echo "${yellow}CHECKING FOR UBUNTU SNAP PACKAGE '$SYS_PACK', please wait...${reset}" > /dev/tty
+          echo " " > /dev/tty
+          
+          sleep 3
+          
+          $UBUNTU_SNAP_INSTALL $SYS_PACK > /dev/tty
+          
+          fi
+     
+     
+     sleep 2
+     
+     PATH_CHECK_REENTRY=1 # Set reentry flag, right before reentry
+     
+     echo $(get_app_path "$1")
+           
+     fi
+
+
+}
+
+
+# Ubuntu uses snaps for very basic libraries these days, so we need to configure for possible snap installs
+if [ "$IS_UBUNTU" != "" ]; then
+UBUNTU_SNAP_PATH=$(get_app_path "snap")
+fi
+
+
+######################################
+
+
+# ON DEBIAN-BASED SYSTEMS ONLY:
+# Do we have less than 900MB PHYSICAL RAM (IN KILOBYTES),
+# AND no swap / less swap virtual memory than 900MB (IN BYTES)?
+if [ -f "/etc/debian_version" ] && [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -lt 900000 ] && (
+[ "$(free | awk '/^Swap:/ { print $2 }')" = "0" ] || [ "$(free --bytes | awk '/^Swap:/ { print $2 }')" -lt 900000000 ]
+); then
+
+echo "${red}YOU HAVE LESS THAN 900MB *PHYSICAL* MEMORY, AND ALSO HAVE LESS THAN 900MB SWAP *VIRTUAL* MEMORY. This MAY cause your system to FREEZE, *IF* you have a desktop display attached!${reset}"
+
+echo "${yellow} "
+read -n1 -s -r -p $"PRESS F to fix this (sets swap virtual memory to 1GB), OR any other key to skip fixing..." key
+echo "${reset} "
+
+    if [ "$key" = 'f' ] || [ "$key" = 'F' ]; then
+
+    echo " "
+    echo "${cyan}Changing Swap Virtual Memory size to 1GB, please wait (THIS MAY TAKE AWHILE ON SMALLER SYSTEMS)...${reset}"
+    echo " "
+    
+    # Required components check...
+    
+    # dphys-swapfile
+    DPHYS_PATH=$(get_app_path "dphys-swapfile")
+
+    # sed
+    SED_PATH=$(get_app_path "sed")
+    
+    sudo $DPHYS_PATH swapoff
+    
+    sleep 5
+         
+        if [ -f /etc/dphys-swapfile ]; then
+			    
+	   DETECT_SWAP_CONF=$(sudo sed -n '/CONF_SWAPSIZE=/p' /etc/dphys-swapfile)
+			
+		   if [ "$DETECT_SWAP_CONF" != "" ]; then 
+             sudo sed -i "s/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=1024/g" /etc/dphys-swapfile
+             elif [ "$DETECT_SWAP_CONF" == "" ]; then 
+             sudo bash -c "echo 'CONF_SWAPSIZE=1024' >> /etc/dphys-swapfile"
+	        fi
+	        
+	   sudo $DPHYS_PATH setup
+	   
+	   sleep 5
+	   
+	   sudo $DPHYS_PATH swapon
+	   
+	   sleep 5
+	   
+        echo " "
+        echo "${green}Swap Memory size has been updated to 1GB.${reset}"
+        echo " "
+        
+        else
+	   
+        echo " "
+        echo "${red}Swap Memory config file could NOT be located, skipping update of Swap Memory size!${reset}"
+        echo " "
+	        
+	   fi
+	   
+    else
+
+    echo " "
+    echo "${green}Skipping...${reset}"
+    echo " "
+    
+    fi
+
 fi
 
 
@@ -293,7 +553,7 @@ clean_system_update () {
      if [ -z "$ALLOW_FULL_UPGRADE" ]; then
      
      echo " "
-     echo "${yellow}Does the Operating System on this device update using the \"Rolling Release\" model (Kali, Manjaro, Ubuntu Rolling Rhino, Debian Unstable, etc), or the \"Long-Term Release\" model (Ubuntu, Raspberry Pi OS, Armbian Stable, Diet Pi, etc)?"
+     echo "${yellow}Does the Operating System on this device update using the \"Rolling Release\" model (Kali, Manjaro, Ubuntu Rolling Rhino, Debian Unstable, etc), or the \"Long-Term Release\" model (Debian, Ubuntu, Raspberry Pi OS, Armbian Stable, Diet Pi, etc)?"
      echo " "
      echo "${red}(You can SEVERLY MESS UP a \"Rolling Release\" Operating System IF YOU DO NOT CHOOSE CORRECTLY HERE! In that case, you can SAFELY choose \"I don't know\".)${reset}"
      echo " "
@@ -323,38 +583,46 @@ clean_system_update () {
      fi
 
 
-     if [ "$APT_CACHE_CLEARED" != "1" ]; then
+     if [ -z "$PACKAGE_CACHE_REFRESHED" ]; then
 
-     echo "${cyan}Making sure your APT sources list is updated before installations, please wait...${reset}"
-     
-     echo " "
-     
-     # In case package list was ever corrupted (since we are about to rebuild it anyway...avoids possible errors)
-     sudo rm -rf /var/lib/apt/lists/* -vf > /dev/null 2>&1
-     
-     APT_CACHE_CLEARED=1
-     
-     sleep 2
-     
-     sudo apt update
-     
-     sleep 2
-     
-     echo " "
 
-     echo "${cyan}APT sources list update complete.${reset}"
+          if [ -f "/etc/debian_version" ]; then
+
+          echo "${cyan}Making sure your APT sources list is updated before installations, please wait...${reset}"
+          
+          echo " "
+          
+          # In case package list was ever corrupted (since we are about to rebuild it anyway...avoids possible errors)
+          sudo rm -rf /var/lib/apt/lists/* -vf > /dev/null 2>&1
+          
+          sleep 2
+          
+          sudo apt-get update
+          
+          echo " "
      
-     echo " "
+          echo "${cyan}APT sources list update complete.${reset}"
+          
+          echo " "
      
-          if [ "$ALLOW_APT_UPGRADE" == "yes" ]; then
+          fi
+          
+     
+          if [ "$ALLOW_FULL_UPGRADE" == "yes" ]; then
 
           echo "${cyan}Making sure your system is updated before installations, please wait...${reset}"
           
           echo " "
           
-          #DO NOT RUN dist-upgrade, bad things can happen, lol
-          sudo apt upgrade -y
-          				
+          
+               if [ -f "/etc/debian_version" ]; then
+               #DO NOT RUN dist-upgrade, bad things can happen, lol
+               sudo apt-get upgrade -y
+               elif [ -f "/etc/redhat-release" ]; then
+               sudo yum upgrade -y
+               fi
+          
+          
           sleep 2
           
           echo " "
@@ -365,6 +633,9 @@ clean_system_update () {
           
           fi
      
+     
+     PACKAGE_CACHE_REFRESHED=1
+     
      fi
 
 }
@@ -374,227 +645,77 @@ clean_system_update () {
 ######################################
 
 
-# Get primary dependency apps, if we haven't yet
+# Get PRIMARY dependency lib's paths (for bash scripting commands...auto-install is attempted, if not found on system)
+# (our usual standard library prerequisites [ordered alphabetically], for 99% of advanced bash scripting needs)
+
+# avahi-daemon
+AVAHID_PATH=$(get_app_path "avahi-daemon")
+
+# bc
+BC_PATH=$(get_app_path "bc")
+
+# bsdtar
+BSDTAR_PATH=$(get_app_path "bsdtar")
+
+# curl
+CURL_PATH=$(get_app_path "curl")
+
+# expect
+EXPECT_PATH=$(get_app_path "expect")
     
-    
-# If 'python3' wasn't found, install it
-# python3's FULL PATH (we DONT want python [which is python2])
-PYTHON_PATH=$(which python3)
+# git
+GIT_PATH=$(get_app_path "git")
 
-if [ -z "$PYTHON_PATH" ]; then
+# jq
+JQ_PATH=$(get_app_path "jq")
 
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
+# less
+LESS_PATH=$(get_app_path "less")
 
-echo " "
-echo "${cyan}Installing required component python3, please wait...${reset}"
-echo " "
+# sed
+SED_PATH=$(get_app_path "sed")
 
-sudo apt install python3 -y
+# wget
+WGET_PATH=$(get_app_path "wget")
 
-fi
-
-
-# Install xdg-user-dirs if needed
-XDGUSER_PATH=$(which xdg-user-dir)
-
-if [ -z "$XDGUSER_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component xdg-user-dirs, please wait...${reset}"
-echo " "
-
-sudo apt install xdg-user-dirs -y
-
-fi
-
-
-# Install rsyslogd if needed
-SYSLOG_PATH=$(which rsyslogd)
-
-if [ -z "$SYSLOG_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component rsyslog, please wait...${reset}"
-echo " "
-
-sudo apt install rsyslog -y
-
-fi
-
-
-# Install git if needed
-GIT_PATH=$(which git)
-
-if [ -z "$GIT_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component git, please wait...${reset}"
-echo " "
-
-sudo apt install git -y
-
-fi
-
-
-# Install curl if needed
-CURL_PATH=$(which curl)
-
-if [ -z "$CURL_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component curl, please wait...${reset}"
-echo " "
-
-sudo apt install curl -y
-
-fi
-
-
-# Install jq if needed
-JQ_PATH=$(which jq)
-
-if [ -z "$JQ_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component jq, please wait...${reset}"
-echo " "
-
-sudo apt install jq -y
-
-fi
-
-
-# Install wget if needed
-WGET_PATH=$(which wget)
-
-if [ -z "$WGET_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component wget, please wait...${reset}"
-echo " "
-
-sudo apt install wget -y
-
-fi
-
-
-# Install sed if needed
-SED_PATH=$(which sed)
-
-if [ -z "$SED_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component sed, please wait...${reset}"
-echo " "
-
-sudo apt install sed -y
-
-fi
-
-
-# Install less if needed
-LESS_PATH=$(which less)
+# PRIMARY dependency lib's paths END
 				
-if [ -z "$LESS_PATH" ]; then
 
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component less, please wait...${reset}"
-echo " "
-
-sudo apt install less -y
-
-fi
+######################################
 
 
-# Install expect if needed
-EXPECT_PATH=$(which expect)
-				
-if [ -z "$EXPECT_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component expect, please wait...${reset}"
-echo " "
-
-sudo apt install expect -y
-
-fi
-
-
-# Install avahi-daemon if needed (for .local names on internal / home network)
-AVAHID_PATH=$(which avahi-daemon)
-
-if [ -z "$AVAHID_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component avahi-daemon, please wait...${reset}"
-echo " "
-
-sudo apt install avahi-daemon -y
-
-fi
-
-
-# Install bc if needed (for decimal math in bash)
-BC_PATH=$(which bc)
-
-if [ -z "$BC_PATH" ]; then
-
-# Clears / updates cache, then upgrades (if NOT a rolling release)
-clean_system_update
-
-echo " "
-echo "${cyan}Installing required component bc, please wait...${reset}"
-echo " "
-
-sudo apt install bc -y
-
-fi
-
-# dependency check END
+# Get the *INTERNAL* NETWORK ip address
+IP=$(ip -o route get to 8.8.8.8 | sed -n 's/.*src \([0-9.]\+\).*/\1/p')
 
 
 ######################################
 
 
-# For setting user agent header in curl, since some API servers !REQUIRE! a set user agent OR THEY BLOCK YOU
-CUSTOM_CURL_USER_AGENT_HEADER="User-Agent: Curl (${OS}/$VER; compatible;)"
+# Dependencies SPECIFICALLY for this bluetooth internet radio script...
+
+# pulseaudio's FULL PATH (to run checks later)
+PULSEAUDIO_PATH=$(get_app_path "pulseaudio")
+
+# python3's FULL PATH (we DONT want python [which is python2])
+PYTHON_PATH=$(get_app_path "python3")
+
+# Install xdg-user-dirs if needed
+XDGUSER_PATH=$(get_app_path "xdg-user-dir")
+
+# Install rsyslogd if needed
+SYSLOG_PATH=$(get_app_path "rsyslogd")
+
+
+######################################
 
 
 ###############################################################################################
 # Primary init complete, now check bt_autoconnect_install and symbolic link status
 ###############################################################################################
 
+
+# bluetooth-autoconnect's FULL PATH (to run checks OR install later)
+BT_AUTOCONNECT_PATH="${SCRIPT_PATH}/bluetooth-autoconnect.py"
 
 # bt_autoconnect_install function START
 bt_autoconnect_install () {
@@ -610,10 +731,10 @@ bt_autoconnect_install () {
     echo " "
     
     # Install python3 prctl
-    sudo apt install python3-prctl -y
+    $PACKAGE_INSTALL python3-prctl -y
     
     # Install python3 dbus modules
-    sudo apt install python3-dbus python3-slip-dbus python3-pydbus -y
+    $PACKAGE_INSTALL python3-dbus python3-slip-dbus python3-pydbus -y
     
             
     # SPECIFILLY NAME IT WITH -O, TO OVERWRITE ANY PREVIOUS COPY...ALSO --no-cache TO ALWAYS GET LATEST COPY
@@ -736,22 +857,26 @@ echo "${green}~/radio \"upgrade y\"${cyan}"
 echo "(checks for / confirms script upgrade)"
 echo " "
 echo "${green}~/radio \"7 1 b3\""
-echo "${green}~/radio \"play 1 b3\"${cyan}"
-echo "(plays pyradio default playlist 3rd station in background)"
+echo "${green}~/radio \"internet 1 b3\"${cyan}"
+echo "(plays default INTERNET playlist in background, 3rd station)"
 echo " "
-echo "${green}~/radio 8"
-echo "${green}~/radio stop${cyan}"
-echo "(stops pyradio playback)"
+echo "${green}~/radio \"9 1 bs\""
+echo "${green}~/radio \"local 1 bs\"${cyan}"
+echo "(plays default LOCAL music folder [RECURSIVELY] in background, shuffling)"
 echo " "
-echo "${green}~/radio \"10 XX:XX:XX:XX:XX:XX\""
+echo "${green}~/radio 10"
+echo "${green}~/radio off${cyan}"
+echo "(stops audio playback)"
+echo " "
+echo "${green}~/radio \"12 XX:XX:XX:XX:XX:XX\""
 echo "${green}~/radio \"connect XX:XX:XX:XX:XX:XX\"${cyan}"
 echo "(connect bluetooth device by mac address)"
 echo " "
-echo "${green}~/radio \"11 XX:XX:XX:XX:XX:XX\""
+echo "${green}~/radio \"13 XX:XX:XX:XX:XX:XX\""
 echo "${green}~/radio \"remove XX:XX:XX:XX:XX:XX\"${cyan}"
 echo "(remove bluetooth device by mac address)"
 echo " "
-echo "${green}~/radio \"12 3\""
+echo "${green}~/radio \"14 3\""
 echo "${green}~/radio \"devices paired\"${cyan}"
 echo "(shows paired bluetooth devices)"
 echo "${reset} "
@@ -763,11 +888,23 @@ fi
 ###############################################################################################
 
 
+if [ -f ~/.config/radio.alsamixer.state ]; then
+
+echo " "
+echo "${cyan}Loading customized alsamixer settings from: ~/.config/radio.alsamixer.state ${reset}"
+echo " "
+
+# RELIABLY persist volume / other alsamixer setting changes
+# https://askubuntu.com/questions/50067/how-to-save-alsamixer-settings
+alsactl --file ~/.config/radio.alsamixer.state restore
+
+fi
+
 echo " "
 echo "${yellow}Enter the NUMBER next to your chosen option:${reset}"
 echo " "
 
-OPTIONS="upgrade_check pulseaudio_install pulseaudio_fix pulseaudio_status pyradio_install pyradio_fix pyradio_on pyradio_off bluetooth_scan bluetooth_connect bluetooth_remove bluetooth_devices bluetooth_status sound_test volume_adjust troubleshoot syslog_logs journal_logs restart_computer exit_app other_apps about_this_app"
+OPTIONS="upgrade_check pulseaudio_install pulseaudio_fix pulseaudio_status internet_player_install internet_player_fix internet_player_on local_player_install local_player_on any_player_off bluetooth_scan bluetooth_connect bluetooth_remove bluetooth_devices bluetooth_status sound_test volume_adjust troubleshoot syslog_logs journal_logs restart_computer exit_app other_apps about_this_app"
 
 
 # start options
@@ -822,7 +959,7 @@ select opt in $OPTIONS; do
             echo "${yellow}Do you want to upgrade to v${LATEST_VERSION} now?${reset}"
             
             echo "${yellow} "
-            read -n1 -s -r -p $"Press y to upgrade (or press n to cancel)..." keystroke
+            read -n1 -s -r -p $"Press Y to upgrade (or press N to cancel)..." keystroke
             echo "${reset} "
                     
                     
@@ -914,7 +1051,7 @@ select opt in $OPTIONS; do
         echo "${red} "
         echo "NOTICE: YOUR COMPUTER WILL REBOOT AFTER CONFIGURATION OF THIS COMPONENT!"
         echo " "
-        read -n1 -s -r -p $"Press y to continue (or press n to exit)..." key
+        read -n1 -s -r -p $"Press Y to continue (or press N to exit)..." key
         echo "${reset} "
         
             if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
@@ -931,20 +1068,14 @@ select opt in $OPTIONS; do
         echo " "
         
         ######################################
-
         
-        echo "${cyan}Making sure your system is updated before installation, please wait...${reset}"
-        
-        echo " "
 
         # Clears / updates cache, then upgrades (if NOT a rolling release)
         clean_system_update
-        
-        echo " "
-        				
-        echo "${cyan}System update completed.${reset}"
         				
         sleep 3
+        
+        echo " "
         
 
 				if [ -f /boot/dietpi/.version ]; then
@@ -959,7 +1090,7 @@ select opt in $OPTIONS; do
                 echo "You #CAN# SAFELY REBOOT if asked to, and RUN THE PULSEAUDIO INSTALL OPTION #AGAIN# AFTERWARDS."
                 
                 echo "${yellow} "
-                read -n1 -s -r -p $'Press y to run dietpi-config (or #IF# YOU DID THIS ALREADY press n to skip)...\n' keystroke
+                read -n1 -s -r -p $'Press Y to run dietpi-config (or #IF# YOU DID THIS ALREADY press N to skip)...\n' keystroke
                 echo "${reset} "
         
                     if [ "$keystroke" = 'y' ] || [ "$keystroke" = 'Y' ]; then
@@ -999,10 +1130,6 @@ select opt in $OPTIONS; do
                 sleep 2
 				
 				fi
-        
-
-        # Clears / updates cache, then upgrades (if NOT a rolling release)
-        clean_system_update
         				
         echo " "
         
@@ -1010,9 +1137,9 @@ select opt in $OPTIONS; do
         echo " "
         
         # needed components
-        apt install alsa-utils -y
+        $PACKAGE_INSTALL alsa-utils -y
         
-        apt install pulseaudio* -y
+        $PACKAGE_INSTALL pulseaudio* -y
         
         sleep 5
         
@@ -1106,7 +1233,7 @@ select opt in $OPTIONS; do
         echo "${red} "
         echo "NOTICE: YOUR COMPUTER WILL REBOOT AFTER CONFIGURATION OF THIS COMPONENT!"
         echo " "
-        read -n1 -s -r -p $"Press y to continue (or press n to exit)..." key
+        read -n1 -s -r -p $"Press Y to continue (or press N to exit)..." key
         echo "${reset} "
         
             if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
@@ -1265,7 +1392,7 @@ select opt in $OPTIONS; do
             # If 'pulseaudio' was found, start it
             if [ -f "$PULSEAUDIO_PATH" ]; then
                     
-            echo "${yellow}PulseAudio status: ${red}(HOLD Ctrl+c KEYS DOWN TO EXIT)${yellow}:"
+            echo "${yellow}PulseAudio status: ${red}(HOLD Ctrl+C KEYS DOWN TO EXIT)${yellow}:"
             echo "${reset} "
             systemctl --user status pulseaudio.service
             exit
@@ -1283,7 +1410,7 @@ select opt in $OPTIONS; do
         ##################################################################################################################
         ##################################################################################################################
         
-        elif [ "$opt" = "pyradio_install" ]; then
+        elif [ "$opt" = "internet_player_install" ]; then
         
         
         ######################################
@@ -1305,7 +1432,7 @@ select opt in $OPTIONS; do
         echo "${red} "
         echo "NOTICE: YOUR COMPUTER WILL REBOOT AFTER CONFIGURATION OF THIS COMPONENT!"
         echo " "
-        read -n1 -s -r -p $"Press y to continue (or press n to exit)..." key
+        read -n1 -s -r -p $"Press Y to continue (or press N to exit)..." key
         echo "${reset} "
         
             if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
@@ -1335,22 +1462,22 @@ select opt in $OPTIONS; do
         sleep 1
         
         # Install screen and mpv instead of mplayer, it's more stable
-        sudo apt install screen mpv -y
+        $PACKAGE_INSTALL screen mpv -y
         
         sleep 1
         
         # mplayer as backup if distro doesn't have an mpv package (mpv will be used first automatically if found)
-        sudo apt install mplayer -y
+        $PACKAGE_INSTALL mplayer -y
         
         sleep 1
         
         # vlc as backup if distro doesn't have an mpv or mplayer package
-        sudo apt install vlc -y
+        $PACKAGE_INSTALL vlc -y
         
         sleep 1
         
         # Install pyradio python3 dependencies
-        sudo apt install python3-setuptools python3-wheel python3-pip python3-requests python3-dnspython python3-psutil python3-rich -y
+        $PACKAGE_INSTALL python3-setuptools python3-wheel python3-pip python3-requests python3-dnspython python3-psutil python3-rich -y
         
         sleep 3
         
@@ -1381,7 +1508,7 @@ select opt in $OPTIONS; do
         ##################################################################################################################
         ##################################################################################################################
         
-        elif [ "$opt" = "pyradio_fix" ]; then
+        elif [ "$opt" = "internet_player_fix" ]; then
         
         
         ######################################
@@ -1418,10 +1545,10 @@ select opt in $OPTIONS; do
                 break
                elif [ "$opt" = "system_freezes" ]; then
 
-                # Clears / updates cache, then upgrades (if NOT a rolling release)
-                clean_system_update
+               # Clears / updates cache, then upgrades (if NOT a rolling release)
+               clean_system_update
                 
-                sudo apt install mplayer -y
+                $PACKAGE_INSTALL mplayer -y
                 
                 # mpv crashes low power devices, mplayer does not (and vlc doesn't handle network disruption too well)
                 sed -i 's/player = .*/player = mplayer, vlc, mpv/g' ~/.config/pyradio/config > /dev/null 2>&1
@@ -1455,7 +1582,7 @@ select opt in $OPTIONS; do
         ##################################################################################################################
         ##################################################################################################################
         
-        elif [ "$opt" = "pyradio_on" ]; then
+        elif [ "$opt" = "internet_player_on" ]; then
         
         
         ######################################
@@ -1471,14 +1598,25 @@ select opt in $OPTIONS; do
             fi
         
         ######################################
+
         
-        # kill any background instances of pyradio
-        SCREENS_DETACHED=$(screen -ls | grep Detached | grep "pyradio")
-        if [ "$SCREENS_DETACHED" != "" ]; then
-        echo $SCREENS_DETACHED | cut -d. -f1 | awk '{print $1}' | xargs kill
-        else
-        pkill -o pyradio > /dev/null 2>&1
-        fi
+            # kill any background instances of pyradio
+            SCREENS_DETACHED=$(screen -ls | grep Detached | grep "pyradio")
+            if [ "$SCREENS_DETACHED" != "" ]; then
+            echo $SCREENS_DETACHED | cut -d. -f1 | awk '{print $1}' | xargs kill
+            else
+            pkill -o pyradio > /dev/null 2>&1
+            fi
+
+            
+            # kill any background instances of mplayer
+            SCREENS_DETACHED=$(screen -ls | grep Detached | grep "mplayer")
+            if [ "$SCREENS_DETACHED" != "" ]; then
+            echo $SCREENS_DETACHED | cut -d. -f1 | awk '{print $1}' | xargs kill
+            else
+            pkill -o mplayer > /dev/null 2>&1
+            fi
+
         
         bt_autoconnect_check > /dev/null 2>&1
         
@@ -1502,26 +1640,29 @@ select opt in $OPTIONS; do
                 	if [ -z "$CUSTOM_STATIONS_FILE" ]; then
                  	LOAD_CUSTOM_STATIONS=""
                  	PLAYLIST_DESC="default"
-                    echo " "
-                 	echo "${green}Using default stations...${reset}"
-                    echo " "
                  	else
                  	LOAD_CUSTOM_STATIONS="-s $CUSTOM_STATIONS_FILE"
                  	PLAYLIST_DESC="custom"
-                    echo " "
-                    echo "${green}Using custom stations from: $CUSTOM_STATIONS_FILE${reset}"
-                    echo " "
                  	fi
                 
                 break
                elif [ "$opt" = "default_stations" ]; then
                 PLAYLIST_DESC="default"
-                echo " "
-                echo "${green}Using default stations...${reset}"
-                echo " "
                 break
                fi
         done
+        
+        
+            if [ -z "$LOAD_CUSTOM_STATIONS" ]; then
+            echo " "
+            echo "${green}Using default stations...${reset}"
+            echo " "
+            else
+            echo " "
+            echo "${green}Using custom stations from: $CUSTOM_STATIONS_FILE${reset}"
+            echo " "
+            fi
+            
         
         echo " "
         echo "${cyan}PRO TIPS:"
@@ -1561,7 +1702,7 @@ select opt in $OPTIONS; do
             echo "${reset} "
             
             echo "${yellow} "
-            read -n1 -s -r -p $'Press y to run pyradio first-time setup (or press n to cancel)...\n' keystroke
+            read -n1 -s -r -p $'Press Y to run pyradio first-time setup (or press N to cancel)...\n' keystroke
             echo "${reset} "
         
                 if [ "$keystroke" = 'y' ] || [ "$keystroke" = 'Y' ]; then
@@ -1608,7 +1749,7 @@ select opt in $OPTIONS; do
             
         
             echo "${yellow} "
-            echo "Enter b to run pyradio in the background, or s to show on-screen..." 
+            echo "Enter B to run pyradio in the background, or S to show on-screen..." 
             echo "(to include the playlist number, enter b[num] / s[num] instead, eg: b2)"
             echo "${reset} "
             
@@ -1652,7 +1793,7 @@ select opt in $OPTIONS; do
             
                 else
                 
-                echo "${cyan}Opening pyradio cancelled.${reset}"
+                echo "${cyan}Incorrect play mode does NOT exist (your input was: ${keystroke:0:1}), opening pyradio cancelled.${reset}"
                 echo " "
             
                 fi
@@ -1661,12 +1802,325 @@ select opt in $OPTIONS; do
             fi
             
         
-        break        
+        break 
         
         ##################################################################################################################
         ##################################################################################################################
         
-        elif [ "$opt" = "pyradio_off" ]; then
+        elif [ "$opt" = "local_player_install" ]; then
+        
+        
+        ######################################
+        
+        echo " "
+        
+            if [ "$EUID" == 0 ]; then 
+             echo "${red}Please run #WITHOUT# 'sudo' PERMISSIONS."
+             echo " "
+             echo "(some components for mplayer are installed as a regular user)${reset}"
+             echo " "
+             echo "${cyan}Exiting...${reset}"
+             echo " "
+             exit
+            fi
+        
+        ######################################
+
+        echo "${red} "
+        echo "NOTICE: YOUR COMPUTER WILL REBOOT AFTER CONFIGURATION OF THIS COMPONENT!"
+        echo " "
+        read -n1 -s -r -p $"Press Y to continue (or press N to exit)..." key
+        echo "${reset} "
+        
+            if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+            echo " "
+            echo "${green}Continuing...${reset}"
+            echo " "
+            else
+            echo " "
+            echo "${green}Exiting...${reset}"
+            echo " "
+            exit
+            fi
+        
+        echo " "
+        
+        ######################################
+
+        # Clears / updates cache, then upgrades (if NOT a rolling release)
+        clean_system_update
+        
+        echo " "
+        echo "${green}Installing mplayer and required components, please wait...${reset}"
+        echo " "
+        
+        sleep 1
+        
+        # Install screen
+        $PACKAGE_INSTALL screen -y
+        
+        sleep 1
+        
+        # mplayer
+        $PACKAGE_INSTALL mplayer -y
+        
+        sleep 3
+        
+        mkdir -p $HOME/Music/MPlayer
+        
+        echo " "
+        echo "${green}mplayer installation complete.${reset}"
+        echo " "
+		
+		echo " "
+		echo "${red}Rebooting your system, please wait, and log back in afterwards...${reset}"
+		echo " "
+		
+		sleep 5
+		
+		sudo reboot
+        
+        break 
+        
+        ##################################################################################################################
+        ##################################################################################################################
+        
+        elif [ "$opt" = "local_player_on" ]; then
+        
+        
+        ######################################
+        
+        echo " "
+        
+            if [ "$EUID" == 0 ]; then 
+             echo "${red}Please run #WITHOUT# 'sudo' PERMISSIONS.${reset}"
+             echo " "
+             echo "${cyan}Exiting...${reset}"
+             echo " "
+             exit
+            fi
+        
+        ######################################
+
+        
+            # kill any background instances of pyradio
+            SCREENS_DETACHED=$(screen -ls | grep Detached | grep "pyradio")
+            if [ "$SCREENS_DETACHED" != "" ]; then
+            echo $SCREENS_DETACHED | cut -d. -f1 | awk '{print $1}' | xargs kill
+            else
+            pkill -o pyradio > /dev/null 2>&1
+            fi
+
+            
+            # kill any background instances of mplayer
+            SCREENS_DETACHED=$(screen -ls | grep Detached | grep "mplayer")
+            if [ "$SCREENS_DETACHED" != "" ]; then
+            echo $SCREENS_DETACHED | cut -d. -f1 | awk '{print $1}' | xargs kill
+            else
+            pkill -o mplayer > /dev/null 2>&1
+            fi
+
+        
+        bt_autoconnect_check > /dev/null 2>&1
+        
+        echo " "
+        echo "${yellow}Select 1 or 2 to choose whether to load a custom directory, or the default one.${reset}"
+        echo " "
+        
+        OPTIONS="default_directory custom_directory"
+        
+        select opt in $OPTIONS; do
+                if [ "$opt" = "custom_directory" ]; then
+        
+                echo " "
+                echo "${yellow}Enter the #FULL SYSTEM PATH# (example: start with /home/$TERMINAL_USERNAME/ for your home directory)"
+                echo "to your CUSTOM music directory, OR leave blank to use the default one.${reset}"
+                echo " "
+                
+                read CUSTOM_MUSIC_DIR
+                echo " "
+                                
+                	if [ -z "$CUSTOM_MUSIC_DIR" ]; then
+                 	MUSIC_DIR="$HOME/Music/MPlayer"
+                 	MUSIC_DIR_DESC="default"
+                    echo " "
+                 	echo "${green}Using default music directory...${reset}"
+                    echo " "
+                 	else
+                 	MUSIC_DIR="$CUSTOM_MUSIC_DIR"
+                 	MUSIC_DIR_DESC="custom"
+                    echo " "
+                    echo "${green}Using custom music directory from: $CUSTOM_MUSIC_DIR${reset}"
+                    echo " "
+                 	fi
+                
+                break
+               elif [ "$opt" = "default_directory" ]; then
+                MUSIC_DIR="$HOME/Music/MPlayer"
+                MUSIC_DIR_DESC="default"
+                echo " "
+                echo "${green}Using default music directory...${reset}"
+                echo " "
+                break
+               fi
+        done
+        
+        
+            if [ -z "$MUSIC_DIR" ]; then
+
+            echo " "
+            echo "${green}Music directory was NOT chosen, exiting...${reset}"
+            echo " "
+            
+            exit
+            
+            fi
+        
+        
+            # IF WE NEED TO CREATE THE MUSIC DIRECTORY
+            if [ ! -d /home/$TERMINAL_USERNAME/Music/MPlayer ]; then
+
+            echo "${red} "
+            echo "###########################################################################################"
+            echo " "
+            echo "We must create the mplayer MUSIC FOLDER: ~/Music/MPlayer (PUT ALL YOUR MUSIC FILES IN HERE AFTERWARDS)."
+            echo " "
+                
+            echo "###########################################################################################"
+            echo "${reset} "
+            
+            echo "${yellow} "
+            read -n1 -s -r -p $'Press Y to create the mplayer MUSIC FOLDER (or press N to cancel)...\n' keystroke
+            echo "${reset} "
+        
+                if [ "$keystroke" = 'y' ] || [ "$keystroke" = 'Y' ]; then
+            
+    		      echo " "
+    			 echo "${cyan}Initiating mplayer MUSIC FOLDER setup, please wait...${reset}"
+                
+                sleep 3
+    			
+    			 mkdir -p $HOME/Music/MPlayer
+            
+                else
+                echo "${green}mplayer MUSIC FOLDER setup has been cancelled.${reset}"
+                echo " "
+                fi
+                
+            
+            # OTHERWISE, LET USER CHOOSE WHICH WAY TO RUN mplayer
+            else
+                
+                
+                files_recursive () {
+                     
+                shopt -s nullglob dotglob
+                    
+                        for pathname in "$1"/*; do
+                        
+                            if [ -d "$pathname" ]; then
+                                files_recursive "$pathname"
+                            else
+                                case "$pathname" in
+                                    *.mp3|*.ogg|*.wav|*.flac|*.mp4)
+                                        printf '%s\n' "$pathname"
+                                esac
+                            fi
+
+                        done
+                        
+                }
+               
+               
+                if [ ! -f ${MUSIC_DIR}/playlist.dat ]; then
+                
+                echo "${green}No playlist found, creating one now at: ${MUSIC_DIR}/playlist.dat${reset}"
+                echo " "
+
+                MPLAYER_PLAYLIST=$(files_recursive "$MUSIC_DIR")
+                
+                echo -e "$MPLAYER_PLAYLIST" > ${MUSIC_DIR}/playlist.dat
+
+                sleep 3
+    
+                fi
+                
+                
+            echo "${yellow} "
+            echo "Enter B to run mplayer in the background, or S to show on-screen..." 
+            echo "(to SHUFFLE append S instead, eg: BS...append N for normal playback, eg: SN)"
+            echo "${reset} "
+            
+            read keystroke
+                
+            IS_SHUFFLED="${keystroke:1}"
+            
+                
+                # If shuffle param WAS NOT included 
+                if [ -z "$IS_SHUFFLED" ]; then
+                echo "${yellow} "
+                read -p 'Enter S for shuffle, or N for normal: ' IS_SHUFFLED
+                echo "${reset} "
+                fi
+            
+                
+                # If shuffle param STILL WAS NOT included, set to N
+                if [ -z "$IS_SHUFFLED" ]; then
+                IS_SHUFFLED="N"
+                fi
+                
+                
+                if [[ $IS_SHUFFLED == "s" ]] || [[ $IS_SHUFFLED == "S" ]]; then
+                MPLAYER_COMMAND="mplayer -shuffle"
+                SHUFF_DESC="Shuffling"
+                else
+                MPLAYER_COMMAND="mplayer"
+                SHUFF_DESC="Playing"
+                fi
+    
+    
+                if [[ ${keystroke:0:1} == "b" ]] || [[ ${keystroke:0:1} == "B" ]]; then
+                
+                echo " "
+                echo "${green}${SHUFF_DESC} mplayer, in ${MUSIC_DIR_DESC} music directory...${reset}"
+                echo " "
+                
+                # Export the vars to screen's bash session, OR IT WON'T RUN!
+                export MPLAYER_COMMAND=$MPLAYER_COMMAND
+                export MUSIC_DIR=$MUSIC_DIR
+                screen -dmS mplayer bash -c '${MPLAYER_COMMAND} -playlist ${MUSIC_DIR}/playlist.dat'
+            
+                elif [[ ${keystroke:0:1} == "s" ]] || [[ ${keystroke:0:1} == "S" ]]; then
+                
+                echo " "
+                echo "${green}${SHUFF_DESC} mplayer, in ${MUSIC_DIR_DESC} music directory...${reset}"
+                echo " "
+                echo "${red}WHEN YOU ARE DONE LISTENING: hold down the 2 keys Ctrl+C at the same time, until you exit this script.${reset}"
+                echo " "
+                
+                ${MPLAYER_COMMAND} -playlist ${MUSIC_DIR}/playlist.dat
+                
+                echo " "
+                echo "${cyan}Exited mplayer.${reset}"
+                echo " "
+            
+                else
+                
+                echo "${cyan}Opening mplayer cancelled.${reset}"
+                echo " "
+            
+                fi
+
+                
+            fi
+            
+        
+        break             
+        
+        ##################################################################################################################
+        ##################################################################################################################
+        
+        elif [ "$opt" = "any_player_off" ]; then
         
         
         ######################################
@@ -1685,8 +2139,9 @@ select opt in $OPTIONS; do
        
        
         echo " "
-        echo "${green}Turning pyradio OFF...${reset}"
+        echo "${green}Turning audio player OFF...${reset}"
         echo " "
+
         
             # kill any background instances of pyradio
             SCREENS_DETACHED=$(screen -ls | grep Detached | grep "pyradio")
@@ -1695,10 +2150,18 @@ select opt in $OPTIONS; do
             else
             pkill -o pyradio > /dev/null 2>&1
             fi
+
+            
+            # kill any background instances of mplayer
+            SCREENS_DETACHED=$(screen -ls | grep Detached | grep "mplayer")
+            if [ "$SCREENS_DETACHED" != "" ]; then
+            echo $SCREENS_DETACHED | cut -d. -f1 | awk '{print $1}' | xargs kill
+            else
+            pkill -o mplayer > /dev/null 2>&1
+            fi
+
         
         exit
-        
-        break    
         
         ##################################################################################################################
         ##################################################################################################################
@@ -1724,7 +2187,7 @@ select opt in $OPTIONS; do
             # If 'pulseaudio' was found, start it
             if [ -f "$PULSEAUDIO_PATH" ]; then
                     
-            echo "${yellow}bluetooth status: ${red}(HOLD Ctrl+c KEYS DOWN TO EXIT)${yellow}:"
+            echo "${yellow}bluetooth status: ${red}(HOLD Ctrl+C KEYS DOWN TO EXIT)${yellow}:"
             echo "${reset} "
             sudo systemctl status bluetooth.service
             exit
@@ -1765,10 +2228,10 @@ select opt in $OPTIONS; do
         echo " "
         echo "Put your bluetooth receiver in pairing mode, and get ready to write down what you see as it's mac address (format: XX:XX:XX:XX:XX:XX).${reset}"
         echo " "
-        echo "${red}WHEN YOU ARE DONE: hold down the 2 keys Ctrl+c at the same time, until you exit this script.${reset}"
+        echo "${red}WHEN YOU ARE DONE: hold down the 2 keys Ctrl+C at the same time, until you exit this script.${reset}"
         
         echo "${yellow} "
-        read -n1 -s -r -p $'Press y to run the bluetooth scan (or press n to cancel)...\n' keystroke
+        read -n1 -s -r -p $'Press Y to run the bluetooth scan (or press N to cancel)...\n' keystroke
         echo "${reset} "
 
             if [ "$keystroke" = 'y' ] || [ "$keystroke" = 'Y' ]; then
@@ -1813,12 +2276,23 @@ select opt in $OPTIONS; do
         read -p "${yellow}Enter your bluetooth receiver mac address here (format: XX:XX:XX:XX:XX:XX):${reset} " BLU_MAC
         echo " "
         
+        echo " "
+        echo "${red}Making sure $BLU_MAC is not ALREADY registered as paired (STALE pairings can cause RE-pairing issues), please wait up to a few minutes for the removal check to complete (silently, in the background)...${reset}"
+        echo " "
+        
+        sleep 5
+        
+        # Hide remove logic output, to avoid confusion with the add logic run after
+        export APP_RECURSE=0 #RESET, TO ALLOW RE-RECURSION HERE
+        ~/radio "remove $BLU_MAC" > /dev/null 2>&1
+        
+        sleep 10
+        
         bluetoothctl power on
-        echo " "
         
-        echo "${cyan}Scanning for device $BLU_MAC, ${red}please wait up to a few minutes${cyan}...${reset}"
         echo " "
-        
+        echo "${red}Scanning for $BLU_MAC (to add / pair it), please wait up to a few minutes...${reset}"
+        echo " "
         
         expect -c "
         set timeout 100
@@ -1877,9 +2351,9 @@ select opt in $OPTIONS; do
         echo " "
         
         bluetoothctl power on
-        echo " "
         
-        echo "${cyan}Scanning for device $BLU_MAC, ${red}please wait 60 seconds or longer${cyan}...${reset}"
+        echo " "
+        echo "${red}Scanning for $BLU_MAC (to remove / un-pair it), please wait 60 seconds or longer...${reset}"
         echo " "
         
         
@@ -2039,6 +2513,16 @@ select opt in $OPTIONS; do
        
        
         alsamixer
+        
+        echo " "
+        echo "${green}Saving customized alsamixer settings to: ~/.config/radio.alsamixer.state${reset}"
+        echo " "
+        
+        sleep 1
+        
+        # RELIABLY persist volume / other alsamixer setting changes
+        # https://askubuntu.com/questions/50067/how-to-save-alsamixer-settings
+        alsactl --file ~/.config/radio.alsamixer.state store
        
         echo " "
         echo "${cyan}Exiting volume control...${reset}"
@@ -2135,7 +2619,7 @@ select opt in $OPTIONS; do
         
         ######################################
                     
-        echo "${yellow}bluetooth journal ${red}(HOLD Ctrl+c KEYS DOWN TO EXIT)${yellow}:"
+        echo "${yellow}bluetooth journal ${red}(HOLD Ctrl+C KEYS DOWN TO EXIT)${yellow}:"
         echo "${reset} "
         journalctl -u bluetooth.service -u pulseaudio.service -u btautoconnect.service --since today
         exit
@@ -2284,7 +2768,7 @@ select opt in $OPTIONS; do
         echo "https://github.com/taoteh1221/Bluetooth_Internet_Radio"
         echo " "
         
-        echo "Fully automated setup of bluetooth and an internet radio player (PyRadio), on a headless RaspberryPi,"
+        echo "Fully automated setup of bluetooth, internet radio player (PyRadio), local music files player (mplayer), on a headless RaspberryPi,"
         echo "connecting to a stereo system's bluetooth receiver (bash script, chmod +x it to run)."
         echo " "
         
@@ -2315,22 +2799,26 @@ select opt in $OPTIONS; do
         echo "(checks for / confirms script upgrade)"
         echo " "
         echo "${green}~/radio \"7 1 b3\""
-        echo "${green}~/radio \"play 1 b3\"${cyan}"
-        echo "(plays pyradio default playlist 3rd station in background)"
+        echo "${green}~/radio \"internet 1 b3\"${cyan}"
+        echo "(plays default INTERNET playlist in background, 3rd station)"
         echo " "
-        echo "${green}~/radio 8"
-        echo "${green}~/radio stop${cyan}"
-        echo "(stops pyradio playback)"
+        echo "${green}~/radio \"9 1 bs\""
+        echo "${green}~/radio \"local 1 bs\"${cyan}"
+        echo "(plays default LOCAL music folder [RECURSIVELY] in background, shuffling)"
         echo " "
-        echo "${green}~/radio \"10 XX:XX:XX:XX:XX:XX\""
+        echo "${green}~/radio 10"
+        echo "${green}~/radio off${cyan}"
+        echo "(stops audio playback)"
+        echo " "
+        echo "${green}~/radio \"12 XX:XX:XX:XX:XX:XX\""
         echo "${green}~/radio \"connect XX:XX:XX:XX:XX:XX\"${cyan}"
         echo "(connect bluetooth device by mac address)"
         echo " "
-        echo "${green}~/radio \"11 XX:XX:XX:XX:XX:XX\""
+        echo "${green}~/radio \"13 XX:XX:XX:XX:XX:XX\""
         echo "${green}~/radio \"remove XX:XX:XX:XX:XX:XX\"${cyan}"
         echo "(remove bluetooth device by mac address)"
         echo " "
-        echo "${green}~/radio \"12 3\""
+        echo "${green}~/radio \"14 3\""
         echo "${green}~/radio \"devices paired\"${cyan}"
         echo "(shows paired bluetooth devices)"
         echo "${reset} "
