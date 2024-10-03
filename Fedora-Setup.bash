@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 # Install cinnamon desktop
 sudo dnf install @cinnamon-desktop-environment 
