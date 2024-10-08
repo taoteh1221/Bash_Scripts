@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFERRED_HOSTNAME="taoteh1221-lenovo-lin"
+PREFERRED_HOSTNAME="taoteh1221-desktop-lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
@@ -9,8 +9,22 @@ sudo dnf upgrade -y
 
 sleep 5
 
+# Enable FUSION repos
+sudo dnf install -y \
+  https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+
+sudo dnf install -y \
+  https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+sleep 5
+
 # Install cinnamon desktop
 sudo dnf install -y @cinnamon-desktop-environment 
+
+sleep 5
+
+# Install dropbox for nemo (cinnamon desktop's file explorer)
+sudo dnf install -y nemo-dropbox
 
 #Install KDE
 sudo dnf install -y @kde-desktop
@@ -21,6 +35,9 @@ sudo dnf group install -y lxde-desktop
 # Install official google chrome (if you "enabled 3rd party repositories" during OS installation)
 sudo dnf config-manager --enable google-chrome
 sudo dnf install -y google-chrome-stable
+
+# Install evolution email / calendar
+sudo dnf install -y evolution
 
 # Install preferred file archiving tools
 sudo dnf install -y p7zip p7zip-plugins unrar ark engrampa
