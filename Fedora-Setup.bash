@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PREFERRED_HOSTNAME="taoteh1221-desktop-lin"
+PREFERRED_HOSTNAME="taoteh1221-Desktop-Asus-Lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
@@ -17,6 +17,9 @@ sudo dnf install -y \
   https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
 sleep 5
+
+# Refresh cache, to include the new repos
+sudo dnf makecache
 
 # Install cinnamon desktop
 sudo dnf install -y @cinnamon-desktop-environment 
@@ -88,6 +91,20 @@ fi
 
 # Update grub bootloader
 sudo grub2-mkconfig -o /etc/grub2.cfg
+
+
+# If running a geforce graphics card, install the drivers
+NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
+
+
+if [ "$NVIDIA_GEFORCE" != "" ]; then
+
+sudo dnf install -y kernel-devel kernel-headers gcc make dkms acpid libglvnd-glx libglvnd-opengl libglvnd-devel pkgconfig
+
+sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda
+
+fi
+
 
 # FULLY lock down all ports with the firewall (already installed / activated by default in fedora),
 # by changing the default zone to the included SERVER default setup
