@@ -4,6 +4,9 @@ PREFERRED_HOSTNAME="taoteh1221-Desktop-Asus-Lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
+# Secure home directory from snooping
+sudo chmod 750 /home/$USER
+
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
 
@@ -48,6 +51,16 @@ sudo dnf install -y p7zip p7zip-plugins unrar ark engrampa
 # Install preferred disk tools
 sudo dnf install -y gparted
 
+# Install samba tools
+sudo dnf install -y cifs-utils
+
+# Install cron / fire it up (will persist between reboots)
+sudo dnf install -y cronie
+
+sleep 2
+
+sudo systemctl start crond.service
+
 # Library needed for FileZilla Pro
 sudo dnf install -y libxcrypt-compat
 
@@ -65,6 +78,25 @@ sudo dnf install -y steam
 
 # Install quake-darkplaces
 sudo dnf install -y darkplaces-quake darkplaces-quake-server
+
+# Set default editors to nano
+DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
+DEFAULT_VISUAL_CHECK=$(sed -n '/export VISUAL/p' ~/.bash_profile)
+
+
+if [ "$DEFAULT_EDITOR_CHECK" == "" ]; then
+sudo bash -c 'echo "export EDITOR=nano" >> ~/.bash_profile'
+else
+sudo sed -i 's/export EDITOR=.*/export EDITOR=nano/g' ~/.bash_profile > /dev/null 2>&1
+fi
+
+
+if [ "$DEFAULT_VISUAL_CHECK" == "" ]; then
+sudo bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
+else
+sudo sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
+fi
+
 
 # Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
 # https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
