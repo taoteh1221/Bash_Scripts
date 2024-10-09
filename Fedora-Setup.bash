@@ -48,6 +48,9 @@ sudo dnf install -y p7zip p7zip-plugins unrar ark engrampa
 # Install preferred disk tools
 sudo dnf install -y gparted
 
+# Library needed for FileZilla Pro
+sudo dnf install -y libxcrypt-compat
+
 # Install home directory encryption tools
 sudo dnf install -y ecryptfs-utils
 
