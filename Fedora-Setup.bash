@@ -4,8 +4,14 @@ PREFERRED_HOSTNAME="taoteh1221-Desktop-Asus-Lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
-# Secure home directory from snooping
+# Secure user home directory, from other accounts snooping it
 sudo chmod 750 /home/$USER
+
+# Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
+# As user
+timedatectl set-local-rtc 0
+# As admin too
+sudo timedatectl set-local-rtc 0
 
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
