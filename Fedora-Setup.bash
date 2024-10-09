@@ -60,6 +60,9 @@ sudo dnf install -y arm-image-installer
 # Installing plugins for playing movies and music
 sudo dnf group install -y Multimedia
 
+# Install steam
+sudo dnf install -y steam
+
 # Install quake-darkplaces
 sudo dnf install -y darkplaces-quake darkplaces-quake-server
 
