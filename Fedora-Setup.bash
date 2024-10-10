@@ -60,6 +60,9 @@ sudo dnf install -y gparted
 # Install samba tools
 sudo dnf install -y cifs-utils
 
+# Install 'passwords and keys' (PGP import / export) interface
+sudo dnf install -y seahorse
+
 # Install cron / fire it up (will persist between reboots)
 sudo dnf install -y cronie
 
