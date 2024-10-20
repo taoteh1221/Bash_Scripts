@@ -1,6 +1,7 @@
+
 #!/bin/bash
 
-PREFERRED_HOSTNAME="taoteh1221-Desktop-Asus-Lin"
+PREFERRED_HOSTNAME="taoteh1221-Laptop-Asus-Lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
@@ -17,6 +18,9 @@ sudo timedatectl set-local-rtc 0
 sudo dnf upgrade -y
 
 sleep 5
+
+# Install kernel building tools
+sudo dnf install kernel-devel-`uname -r` -y
 
 # Enable FUSION repos
 sudo dnf install -y \
@@ -73,8 +77,8 @@ sudo systemctl start crond.service
 # Library needed for FileZilla Pro
 sudo dnf install -y libxcrypt-compat
 
-# Install home directory encryption tools
-sudo dnf install -y ecryptfs-utils
+# Install home directory encryption tools, openssl
+sudo dnf install -y ecryptfs-utils openssl
 
 # IOT (ARM CPU) image installer (fedora raspi images to microsd, etc)
 sudo dnf install -y arm-image-installer
@@ -114,6 +118,16 @@ sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.pow
 # Set hostname
 sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
 
+# Install virtualbox
+# https://medium.com/@till.nitsche_97609/install-virtualbox-on-fedora-40-feec9b24a82e
+# add repo
+sudo dnf config-manager --add-repo=https://download.virtualbox.org/virtualbox/rpm/fedora/virtualbox.repo
+# import gpg key
+sudo rpm --import https://www.virtualbox.org/download/oracle_vbox.asc
+
+# install VirtualBox
+sudo dnf install VirtualBox-7.0 -y
+
 # Make grub boot menu ALWAYS SHOW (even on NON-dual-boot setups)
 sudo grub2-editenv - unset menu_auto_hide
 
@@ -152,6 +166,10 @@ sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda
 
 fi
 
+
+# Run virtualbox config AT THE END OF THIS SCRIPT,
+# SO ANY SECURE BOOT SETUP NOTICES / INSTRUCTIONS DISPLAY LAST!
+sudo /sbin/vboxconfig
 
 # FULLY lock down all ports with the firewall (already installed / activated by default in fedora),
 # by changing the default zone to the included SERVER default setup
