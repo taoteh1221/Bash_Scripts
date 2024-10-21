@@ -1,9 +1,99 @@
-
 #!/bin/bash
+
+
+# USAGE:
+# "chmod +x Fedora-Setup.bash" will make this script runnable / executable
+# "./Fedora-Setup.bash" runs this script in NORMAL setup mode
+# "./Fedora-Setup.bash sign_vbox_modules" runs this script in VIRTUALBOX MODULE SIGNING setup mode,
+# for running virtualbox on secure boot enabled systems
+
+
+# Config
 
 PREFERRED_HOSTNAME="taoteh1221-Laptop-Asus-Lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
+
+# END Config
+
+
+######################################
+
+# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+
+if hash tput > /dev/null 2>&1; then
+
+red=`tput setaf 1`
+green=`tput setaf 2`
+yellow=`tput setaf 3`
+blue=`tput setaf 4`
+magenta=`tput setaf 5`
+cyan=`tput setaf 6`
+
+reset=`tput sgr0`
+
+else
+
+red=``
+green=``
+yellow=``
+blue=``
+magenta=``
+cyan=``
+
+reset=``
+
+fi
+
+######################################
+
+
+# Update PACKAGES (NOT operating system version)
+sudo dnf upgrade -y
+
+sleep 5
+
+# Install kernel building tools
+sudo dnf install kernel-devel-`uname -r` -y
+
+
+# If we are signing the virtualbox modules (for secure boot)
+if [ "$1" == "sign_vbox_modules" ]; then
+
+# Make sure we have openssl installed
+sudo dnf install -y openssl
+
+sleep 2
+
+sudo mkdir -p /var/lib/shim-signed/mok
+
+sleep 2
+
+echo "${yellow}Create a security certificate, for use with virtualbox module signing:"
+echo "${reset} "
+
+sudo openssl req -nodes -new -x509 -newkey rsa:2048 -outform DER -addext "extendedKeyUsage=codeSigning" -keyout /var/lib/shim-signed/mok/MOK.priv -out /var/lib/shim-signed/mok/MOK.der
+
+sleep 2
+
+echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to enable virtualbox module signing:"
+echo "${reset} "
+
+sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
+
+echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, AND ENTER THE PIN YOU CREATED, to enable virtualbox module signing!"
+echo " "
+echo "AFTER REBOOTING, YOU MUST LOG BACK IN, AND RUN THIS COMMAND, TO SIGN THE VITUALBOX MODULES:"
+echo "${cyan}sudo rcvboxdrv setup"
+echo "${reset} "
+echo "Exiting virtualbox module signing setup..."
+echo " "
+
+exit
+
+fi
+# END If signing the virtualbox modules (for secure boot)
+
 
 # Secure user home directory, from other accounts snooping it
 sudo chmod 750 /home/$USER
@@ -13,14 +103,6 @@ sudo chmod 750 /home/$USER
 timedatectl set-local-rtc 0
 # As admin too
 sudo timedatectl set-local-rtc 0
-
-# Update PACKAGES (NOT operating system version)
-sudo dnf upgrade -y
-
-sleep 5
-
-# Install kernel building tools
-sudo dnf install kernel-devel-`uname -r` -y
 
 # Enable FUSION repos
 sudo dnf install -y \
