@@ -163,7 +163,7 @@ sudo dnf install -y ecryptfs-utils openssl
 sudo dnf install -y seahorse
 
 # Install uboot tools (for making ARM disk images bootable, if device is NOT supported by arm-image-installer)
-sudo dnf install -y uboot-tools uboot-images-armv8 rkdeveloptool
+sudo dnf install -y uboot-tools uboot-images-armv8 rkdeveloptool gdisk
 
 # IOT (ARM CPU) image installer (fedora raspi images to microsd, etc)
 sudo dnf install -y arm-image-installer
