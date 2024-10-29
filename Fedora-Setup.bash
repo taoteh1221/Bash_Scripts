@@ -51,10 +51,15 @@ fi
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
 
-sleep 5
+sleep 3
 
 # Install kernel building tools
 sudo dnf install kernel-devel-`uname -r` -y
+
+# Install build / dev tools
+sudo dnf groupinstall -y "Development Tools" "Development Libraries"
+
+sleep 3
 
 
 # If we are signing the virtualbox modules (for secure boot)
@@ -63,18 +68,18 @@ if [ "$1" == "sign_vbox_modules" ]; then
 # Make sure we have openssl installed
 sudo dnf install -y openssl
 
-sleep 2
+sleep 3
 
 sudo mkdir -p /var/lib/shim-signed/mok
 
-sleep 2
+sleep 3
 
 echo "${yellow}Create a security certificate, for use with virtualbox module signing:"
 echo "${reset} "
 
 sudo openssl req -nodes -new -x509 -newkey rsa:2048 -outform DER -addext "extendedKeyUsage=codeSigning" -keyout /var/lib/shim-signed/mok/MOK.priv -out /var/lib/shim-signed/mok/MOK.der
 
-sleep 2
+sleep 3
 
 echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to enable virtualbox module signing:"
 echo "${reset} "
@@ -89,6 +94,7 @@ echo "${reset} "
 echo "Exiting virtualbox module signing setup..."
 echo " "
 
+# EXIT
 exit
 
 fi
@@ -111,15 +117,26 @@ sudo dnf install -y \
 sudo dnf install -y \
   https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-sleep 5
+sleep 3
 
 # Refresh cache, to include the new repos
 sudo dnf makecache
 
+sleep 3
+
+# Install cron / fire it up (will persist between reboots)
+sudo dnf install -y cronie
+
+sleep 3
+
+sudo systemctl start crond.service
+
+sleep 3
+
 # Install cinnamon desktop
 sudo dnf install -y @cinnamon-desktop-environment 
 
-sleep 5
+sleep 3
 
 # Install dropbox for nemo (cinnamon desktop's file explorer)
 sudo dnf install -y nemo-dropbox
@@ -130,13 +147,6 @@ sudo dnf install -y @kde-desktop
 #Install LXDE
 sudo dnf group install -y lxde-desktop
 
-# Install official google chrome (if you "enabled 3rd party repositories" during OS installation)
-sudo dnf config-manager --enable google-chrome
-sudo dnf install -y google-chrome-stable
-
-# Install evolution email / calendar
-sudo dnf install -y evolution
-
 # Install preferred file archiving tools
 sudo dnf install -y p7zip p7zip-plugins unrar ark engrampa
 
@@ -146,33 +156,31 @@ sudo dnf install -y gparted
 # Install samba tools
 sudo dnf install -y cifs-utils
 
+# Install home directory encryption tools, openssl
+sudo dnf install -y ecryptfs-utils openssl
+
 # Install 'passwords and keys' (PGP import / export) interface
 sudo dnf install -y seahorse
 
-# Install cron / fire it up (will persist between reboots)
-sudo dnf install -y cronie
-
-sleep 2
-
-sudo systemctl start crond.service
-
-# Library needed for FileZilla Pro
-sudo dnf install -y libxcrypt-compat
-
-# Install home directory encryption tools, openssl
-sudo dnf install -y ecryptfs-utils openssl
+# Install uboot tools (for making ARM disk images bootable, if device is NOT supported by arm-image-installer)
+sudo dnf install -y uboot-tools uboot-images-armv8 rkdeveloptool
 
 # IOT (ARM CPU) image installer (fedora raspi images to microsd, etc)
 sudo dnf install -y arm-image-installer
 
+# Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
+# AND evolution email / calendar
+sudo dnf config-manager --enable google-chrome
+sudo dnf install -y google-chrome-stable evolution
+
+# Library needed for FileZilla Pro
+sudo dnf install -y libxcrypt-compat
+
 # Installing plugins for playing movies and music
 sudo dnf group install -y Multimedia
 
-# Install steam
-sudo dnf install -y steam
-
-# Install quake-darkplaces
-sudo dnf install -y darkplaces-quake darkplaces-quake-server
+# Install darkplaces-quake, steam, AND lutris
+sudo dnf install -y darkplaces-quake darkplaces-quake-server steam lutris
 
 # Set default editors to nano
 DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
