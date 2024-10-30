@@ -4,7 +4,7 @@
 # USAGE:
 # "chmod +x Fedora-Setup.bash" will make this script runnable / executable
 # "./Fedora-Setup.bash" runs this script in NORMAL setup mode
-# "./Fedora-Setup.bash sign_vbox_modules" runs this script in VIRTUALBOX MODULE SIGNING setup mode,
+# "./Fedora-Setup.bash enroll_secureboot_mok" runs this script in SECURE BOOT MOK (Machine Owner Key) setup mode,
 # for running virtualbox on secure boot enabled systems
 
 
@@ -56,42 +56,58 @@ sleep 3
 # Install kernel building tools
 sudo dnf install kernel-devel-`uname -r` -y
 
-# Install build / dev tools
-sudo dnf groupinstall -y "Development Tools" "Development Libraries"
+# Install build / dev tools / games / media support / etc
+sudo dnf group install -y 3d-printing c-development container-management d-development development-tools games rpm-development-tools sound-and-video vlc
 
 sleep 3
 
 
 # If we are signing the virtualbox modules (for secure boot)
-if [ "$1" == "sign_vbox_modules" ]; then
+if [ "$1" == "enroll_secureboot_mok" ]; then
 
-# Make sure we have openssl installed
-sudo dnf install -y openssl
+    
+     # Check to see if MOK secure boot module signing has already been setup
+     if [ ! -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ ! -f "/var/lib/shim-signed/mok/MOK.der" ]; then
 
-sleep 3
+     # Make sure we have openssl installed
+     sudo dnf install -y openssl
 
-sudo mkdir -p /var/lib/shim-signed/mok
+     sleep 3
 
-sleep 3
+     sudo mkdir -p /var/lib/shim-signed/mok
 
-echo "${yellow}Create a security certificate, for use with virtualbox module signing:"
-echo "${reset} "
+     sleep 3
 
-sudo openssl req -nodes -new -x509 -newkey rsa:2048 -outform DER -addext "extendedKeyUsage=codeSigning" -keyout /var/lib/shim-signed/mok/MOK.priv -out /var/lib/shim-signed/mok/MOK.der
+     echo " "
+     echo "${yellow}Create a MOK (Machine Owner Key) security certificate, for use with secure boot module signing:"
+     echo "${reset} "
 
-sleep 3
+     sudo openssl req -nodes -new -x509 -newkey rsa:2048 -outform DER -addext "extendedKeyUsage=codeSigning" -keyout /var/lib/shim-signed/mok/MOK.priv -out /var/lib/shim-signed/mok/MOK.der
 
-echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to enable virtualbox module signing:"
-echo "${reset} "
+     sleep 3
 
-sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
+     echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to enroll your MOK for secure boot module signing:"
+     echo "${reset} "
 
-echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, AND ENTER THE PIN YOU CREATED, to enable virtualbox module signing!"
+     sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
+
+     echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
+     echo " "
+     echo "IF THIS WAS DONE FOR VIRTUALBOX, AFTER REBOOTING, YOU MUST LOG BACK IN, AND RUN THIS COMMAND:"
+     echo "${cyan}sudo rcvboxdrv setup"
+     echo "${reset} "
+
+     else
+
+     echo " "
+     echo "${red}YOU HAVE ALREADY SETUP MOK SECURE BOOT MODULE SIGNING."
+     echo "${reset} "
+
+     fi
+
+
 echo " "
-echo "AFTER REBOOTING, YOU MUST LOG BACK IN, AND RUN THIS COMMAND, TO SIGN THE VITUALBOX MODULES:"
-echo "${cyan}sudo rcvboxdrv setup"
-echo "${reset} "
-echo "Exiting virtualbox module signing setup..."
+echo "Exiting MOK module signing setup..."
 echo " "
 
 # EXIT
