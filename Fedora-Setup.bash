@@ -1,11 +1,20 @@
 #!/bin/bash
 
 
+####
 # USAGE:
+####
 # "chmod +x Fedora-Setup.bash" will make this script runnable / executable
+####
 # "./Fedora-Setup.bash" runs this script in NORMAL setup mode
-# "./Fedora-Setup.bash enroll_secureboot_mok" runs this script in SECURE BOOT MOK (Machine Owner Key) setup mode,
-# for running virtualbox on secure boot enabled systems
+####
+# "./Fedora-Setup.bash enroll_secureboot_mok" runs this script in ENROLL MOK (Machine Owner Key) setup mode,
+# for boot module signing, on secure boot enabled systems (ADDS boot module signing support)
+####
+# "./Fedora-Setup.bash reset_secureboot_mok" runs this script in RESET MOK (Machine Owner Key) setup mode,
+# for boot module signing, on secure boot enabled systems
+# (RESETS / REMOVES boot module signing support [HELPS IF YOU HAVE MOK ISSUES...THEN YOU CAN RE-ENROLL AFTERWARDS])
+####
 
 
 # Config
@@ -53,20 +62,40 @@ sudo dnf upgrade -y
 
 sleep 3
 
-# Install kernel building tools
-sudo dnf install kernel-devel-`uname -r` -y
+# Install building tools
+sudo dnf install -y kernel-devel-`uname -r` kernel-headers kernel-devel gcc make dkms acpid akmods pkgconfig
 
-# Install build / dev tools / games / media support / etc
-sudo dnf group install -y 3d-printing c-development container-management d-development development-tools games rpm-development-tools sound-and-video vlc
+# Install build + dev tools / games / media support / etc
+sudo dnf group install -y --skip-broken 3d-printing audio c-development container-management editors d-development development-tools games rpm-development-tools sound-and-video vlc
 
 sleep 3
 
 
-# If we are signing the virtualbox modules (for secure boot)
-if [ "$1" == "enroll_secureboot_mok" ]; then
+# If we are DELETING a MOK (Machine Owner Key), for seure boot module signing
+if [ "$1" == "reset_secureboot_mok" ]; then
+
+echo " "
+echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to REMOVE your MOK (Machine Owner Key):"
+echo "${reset} "
+
+sudo mokutil --reset
+
+echo " "
+echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Delete / Reset MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to remove MOK module signing!"
+echo "${reset} "
+
+echo " "
+echo "Exiting MOK reset..."
+echo " "
+
+# EXIT
+exit
+
+# If we are CREATING a MOK (Machine Owner Key), for secure boot module signing
+elif [ "$1" == "enroll_secureboot_mok" ]; then
 
     
-     # Check to see if MOK secure boot module signing has already been setup
+     # Check to see if MOK keys have already been setup
      if [ ! -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ ! -f "/var/lib/shim-signed/mok/MOK.der" ]; then
 
      # Make sure we have openssl installed
@@ -84,37 +113,47 @@ if [ "$1" == "enroll_secureboot_mok" ]; then
 
      sudo openssl req -nodes -new -x509 -newkey rsa:2048 -outform DER -addext "extendedKeyUsage=codeSigning" -keyout /var/lib/shim-signed/mok/MOK.priv -out /var/lib/shim-signed/mok/MOK.der
 
-     sleep 3
-
-     echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to enroll your MOK for secure boot module signing:"
-     echo "${reset} "
-
-     sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
-
-     echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
-     echo " "
-     echo "IF THIS WAS DONE FOR VIRTUALBOX, AFTER REBOOTING, YOU MUST LOG BACK IN, AND RUN THIS COMMAND:"
-     echo "${cyan}sudo rcvboxdrv setup"
-     echo "${reset} "
-
-     else
-
-     echo " "
-     echo "${red}YOU HAVE ALREADY SETUP MOK SECURE BOOT MODULE SIGNING."
-     echo "${reset} "
-
      fi
 
 
 echo " "
-echo "Exiting MOK module signing setup..."
+echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to ENROLL your MOK (Machine Owner Key), for secure boot module signing:"
+echo "${reset} "
+
+sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
+
+echo " "
+echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
+echo " "
+echo "IF THIS WAS DONE FOR VIRTUALBOX, AFTER REBOOTING, YOU MUST LOG BACK IN, AND RUN THIS COMMAND:"
+echo "${cyan}sudo rcvboxdrv setup"
+echo "${reset} "
+
+echo " "
+echo "Exiting MOK setup..."
 echo " "
 
 # EXIT
 exit
 
 fi
-# END If signing the virtualbox modules (for secure boot)
+# END If setting up MOK (for secure boot module updating)
+
+
+# Check to see if MOK secure boot module signing KEYS have already been setup
+if [ ! -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ ! -f "/var/lib/shim-signed/mok/MOK.der" ]; then
+
+echo " "
+echo "${red}MOK (Machine Owner Key) secure boot module signing has NOT been setup yet, RERUN this script with the 'enroll_secureboot_mok' parameter:"
+echo "${cyan}./Fedora-Setup.bash enroll_secureboot_mok"
+echo "${reset} "
+echo "Exiting Fedora setup..."
+echo " "
+
+# EXIT
+exit
+
+fi
 
 
 # Secure user home directory, from other accounts snooping it
@@ -149,16 +188,19 @@ sudo systemctl start crond.service
 
 sleep 3
 
+# Install generic graphics card libraries
+sudo dnf install -y libglvnd-glx libglvnd-opengl libglvnd-devel
+
 # Install cinnamon desktop
 sudo dnf install -y @cinnamon-desktop-environment 
 
-sleep 3
-
-# Install dropbox for nemo (cinnamon desktop's file explorer)
-sudo dnf install -y nemo-dropbox
-
 #Install KDE
 sudo dnf install -y @kde-desktop
+
+sleep 3
+
+# Install dropbox for nemo / dolphin (file explorers)
+sudo dnf install -y nemo-dropbox dolphin-plugins
 
 #Install LXDE
 sudo dnf group install -y lxde-desktop
@@ -191,9 +233,6 @@ sudo dnf install -y google-chrome-stable evolution
 
 # Library needed for FileZilla Pro
 sudo dnf install -y libxcrypt-compat
-
-# Installing plugins for playing movies and music
-sudo dnf group install -y Multimedia
 
 # Install darkplaces-quake, steam, AND lutris
 sudo dnf install -y darkplaces-quake darkplaces-quake-server steam lutris
@@ -256,22 +295,29 @@ sudo sed -i 's/GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/g' /etc/def
 fi
 
 
-# Update grub bootloader
-sudo grub2-mkconfig -o /etc/grub2.cfg
-
-
 # If running a geforce graphics card, install the drivers
 NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
 
 if [ "$NVIDIA_GEFORCE" != "" ]; then
 
-sudo dnf install -y kernel-devel kernel-headers gcc make dkms acpid libglvnd-glx libglvnd-opengl libglvnd-devel pkgconfig
+#https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
+sudo dnf reinstall linux-firmware
 
-sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda
+sleep 3
+
+sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
+
+sleep 3
+
+# https://forums.developer.nvidia.com/t/major-kde-plasma-desktop-frameskip-lag-issues-on-driver-555/293606
+sudo grubby --update-kernel=ALL --args=nvidia.NVreg_EnableGpuFirmware=0
 
 fi
 
+
+# Update grub bootloader
+sudo grub2-mkconfig -o /etc/grub2.cfg
 
 # Run virtualbox config AT THE END OF THIS SCRIPT,
 # SO ANY SECURE BOOT SETUP NOTICES / INSTRUCTIONS DISPLAY LAST!
@@ -281,5 +327,20 @@ sudo /sbin/vboxconfig
 # by changing the default zone to the included SERVER default setup
 # USE WITH CAUTION, THIS EVEN LOCKS DOWN RELATED INCOMING (INITIATED BY CLIENT REQUEST LOCALLY...BROWSER, INTERNET RADIO, ETC)!!!!!
 #sudo firewall-cmd --set-default-zone=FedoraServer
+
+
+if [ "$NVIDIA_GEFORCE" != "" ]; then
+
+echo " "
+echo "${red}If Fedora's BUNDLED GeForce graphics drivers don't work, try the manufacturer's version instead:"
+echo "(AFTER *SAFELY* REMOVING FEDORA'S BUNDLE WITH: sudo dnf remove \*nvidia\* --exclude nvidia-gpu-firmware)"
+echo "${cyan}https://www.nvidia.com/en-us/drivers/unix/"
+echo "${reset} "
+echo "Exiting Fedora setup..."
+echo " "
+
+fi
+
+
 
 
