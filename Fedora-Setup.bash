@@ -319,8 +319,6 @@ if [ "$NVIDIA_GEFORCE" != "" ]; then
 echo " "
 echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
 echo "${reset} "
-echo "Exiting Fedora setup..."
-echo " "
 
 fi
 
@@ -334,3 +332,6 @@ echo "${reset} "
 fi
 
 
+echo " "
+echo "Exiting Fedora setup..."
+echo " "
