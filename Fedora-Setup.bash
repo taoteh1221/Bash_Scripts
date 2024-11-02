@@ -19,7 +19,7 @@
 
 # Config
 
-PREFERRED_HOSTNAME="taoteh1221-Laptop-Asus-Lin"
+PREFERRED_HOSTNAME="taoteh1221-Desktop-Asus-Lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
@@ -63,7 +63,7 @@ sudo dnf upgrade -y
 sleep 3
 
 # Install building tools
-sudo dnf install -y kernel-devel-`uname -r` kernel-headers kernel-devel gcc make dkms acpid akmods pkgconfig
+sudo dnf install -y --skip-broken kernel-devel-`uname -r` kernel-headers kernel-devel gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel qt5-qtx11extras
 
 # Install build + dev tools / games / media support / etc
 sudo dnf group install -y --skip-broken 3d-printing audio c-development container-management editors d-development development-tools games rpm-development-tools sound-and-video vlc
@@ -81,7 +81,7 @@ echo "${reset} "
 sudo mokutil --reset
 
 echo " "
-echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Delete / Reset MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to remove MOK module signing!"
+echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Reset MOK / Yes' -> 'Continue / Reboot', ENTER THE PIN YOU CREATED / REBOOT, to remove MOK module signing!"
 echo "${reset} "
 
 echo " "
@@ -123,18 +123,10 @@ echo "${reset} "
 sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
 
 echo " "
-echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
-echo " "
-echo "IF THIS WAS DONE FOR VIRTUALBOX, AFTER REBOOTING, YOU MUST LOG BACK IN, AND RUN THIS COMMAND:"
-echo "${cyan}sudo rcvboxdrv setup"
+echo "${cyan}Finished MOK setup..."
 echo "${reset} "
 
-echo " "
-echo "Exiting MOK setup..."
-echo " "
-
-# EXIT
-exit
+MOK_SETUP=1
 
 fi
 # END If setting up MOK (for secure boot module updating)
@@ -217,8 +209,8 @@ sudo dnf install -y cifs-utils
 # Install home directory encryption tools, openssl
 sudo dnf install -y ecryptfs-utils openssl
 
-# Install 'passwords and keys' (PGP import / export) interface
-sudo dnf install -y seahorse
+# Install 'passwords and keys' and Kpgp (PGP import / export) interfaces
+sudo dnf install -y seahorse kpgp
 
 # Install uboot tools (for making ARM disk images bootable, if device is NOT supported by arm-image-installer)
 sudo dnf install -y uboot-tools uboot-images-armv8 rkdeveloptool gdisk
@@ -233,6 +225,9 @@ sudo dnf install -y google-chrome-stable evolution
 
 # Library needed for FileZilla Pro
 sudo dnf install -y libxcrypt-compat
+
+# Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
+sudo dnf install -y --skip-broken VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
 
 # Install darkplaces-quake, steam, AND lutris
 sudo dnf install -y darkplaces-quake darkplaces-quake-server steam lutris
@@ -263,16 +258,6 @@ sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.pow
 # Set hostname
 sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
 
-# Install virtualbox
-# https://medium.com/@till.nitsche_97609/install-virtualbox-on-fedora-40-feec9b24a82e
-# add repo
-sudo dnf config-manager --add-repo=https://download.virtualbox.org/virtualbox/rpm/fedora/virtualbox.repo
-# import gpg key
-sudo rpm --import https://www.virtualbox.org/download/oracle_vbox.asc
-
-# install VirtualBox
-sudo dnf install VirtualBox-7.0 -y
-
 # Make grub boot menu ALWAYS SHOW (even on NON-dual-boot setups)
 sudo grub2-editenv - unset menu_auto_hide
 
@@ -302,11 +287,11 @@ NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 if [ "$NVIDIA_GEFORCE" != "" ]; then
 
 #https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
-sudo dnf reinstall linux-firmware
+sudo dnf reinstall -y linux-firmware
 
 sleep 3
 
-sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
+sudo dnf install -y --skip-broken akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
 
 sleep 3
 
@@ -332,9 +317,7 @@ sudo /sbin/vboxconfig
 if [ "$NVIDIA_GEFORCE" != "" ]; then
 
 echo " "
-echo "${red}If Fedora's BUNDLED GeForce graphics drivers don't work, try the manufacturer's version instead:"
-echo "(AFTER *SAFELY* REMOVING FEDORA'S BUNDLE WITH: sudo dnf remove \*nvidia\* --exclude nvidia-gpu-firmware)"
-echo "${cyan}https://www.nvidia.com/en-us/drivers/unix/"
+echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
 echo "${reset} "
 echo "Exiting Fedora setup..."
 echo " "
@@ -342,5 +325,12 @@ echo " "
 fi
 
 
+if [ "$MOK_SETUP" = "1" ]; then
+
+echo " "
+echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
+echo "${reset} "
+
+fi
 
 
