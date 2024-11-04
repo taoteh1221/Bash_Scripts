@@ -191,6 +191,19 @@ sudo dnf install -y @kde-desktop
 
 sleep 3
 
+# KDE double click interval
+KDE_MOUSE_CHECK=$(sed -n '/DoubleClickInterval/p' ~/.config/kdeglobals)
+
+
+if [ "$KDE_MOUSE_CHECK" == "" ]; then
+# Place directly below [KDE], if it does NOT exist
+sed -i '/\[KDE\]/a DoubleClickInterval=1000' ~/.config/kdeglobals > /dev/null 2>&1
+else
+# Replace with preferred setting, if exists
+sed -i 's/DoubleClickInterval=.*/DoubleClickInterval=1000/g' ~/.config/kdeglobals > /dev/null 2>&1
+fi
+
+
 # Install dropbox for nemo / dolphin (file explorers)
 sudo dnf install -y nemo-dropbox dolphin-plugins
 
@@ -209,8 +222,8 @@ sudo dnf install -y cifs-utils
 # Install home directory encryption tools, openssl
 sudo dnf install -y ecryptfs-utils openssl
 
-# Install 'passwords and keys' and Kpgp (PGP import / export) interfaces
-sudo dnf install -y seahorse kpgp
+# Install 'passwords and keys' and Kgpg (GPG import / export) interfaces
+sudo dnf install -y seahorse kgpg
 
 # Install uboot tools (for making ARM disk images bootable, if device is NOT supported by arm-image-installer)
 sudo dnf install -y uboot-tools uboot-images-armv8 rkdeveloptool gdisk
@@ -238,16 +251,16 @@ DEFAULT_VISUAL_CHECK=$(sed -n '/export VISUAL/p' ~/.bash_profile)
 
 
 if [ "$DEFAULT_EDITOR_CHECK" == "" ]; then
-sudo bash -c 'echo "export EDITOR=nano" >> ~/.bash_profile'
+bash -c 'echo "export EDITOR=nano" >> ~/.bash_profile'
 else
-sudo sed -i 's/export EDITOR=.*/export EDITOR=nano/g' ~/.bash_profile > /dev/null 2>&1
+sed -i 's/export EDITOR=.*/export EDITOR=nano/g' ~/.bash_profile > /dev/null 2>&1
 fi
 
 
 if [ "$DEFAULT_VISUAL_CHECK" == "" ]; then
-sudo bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
+bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
 else
-sudo sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
+sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
 fi
 
 
@@ -303,10 +316,6 @@ fi
 
 # Update grub bootloader
 sudo grub2-mkconfig -o /etc/grub2.cfg
-
-# Run virtualbox config AT THE END OF THIS SCRIPT,
-# SO ANY SECURE BOOT SETUP NOTICES / INSTRUCTIONS DISPLAY LAST!
-sudo /sbin/vboxconfig
 
 # FULLY lock down all ports with the firewall (already installed / activated by default in fedora),
 # by changing the default zone to the included SERVER default setup
