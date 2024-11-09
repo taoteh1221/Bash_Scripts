@@ -12,8 +12,12 @@
 # for boot module signing, on secure boot enabled systems (ADDS boot module signing support)
 ####
 # "./Fedora-Setup.bash reset_secureboot_mok" runs this script in RESET MOK (Machine Owner Key) setup mode,
-# for boot module signing, on secure boot enabled systems
+# for RESETTING boot module signing, on secure boot enabled systems
 # (RESETS / REMOVES boot module signing support [HELPS IF YOU HAVE MOK ISSUES...THEN YOU CAN RE-ENROLL AFTERWARDS])
+####
+# "./Fedora-Setup.bash sign_secureboot_modules" runs this script in SIGN MODULES (for secure boot) setup mode,
+# for boot module loading, on secure boot enabled systems (ENABLES boot module loading [in secure boot mode])
+# YOU MUST WAIT, AND RUN THIS MODULE-SIGNING MODE AFTER INSTALLING DRIVERS, AND AFTER ENROLLING THE MOK KEY!
 ####
 
 
@@ -128,8 +132,13 @@ echo "${reset} "
 
 MOK_SETUP=1
 
+# Sign secure boot modules
+elif [ "$1" == "sign_secureboot_modules" ]; then
+
+sudo akmods --force --rebuild
+
 fi
-# END If setting up MOK (for secure boot module updating)
+# END CLI params logic
 
 
 # Check to see if MOK secure boot module signing KEYS have already been setup
