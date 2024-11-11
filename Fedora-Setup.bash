@@ -71,6 +71,49 @@ fi
 ######################################
 
 
+# Get logged-in username (if sudo, this works best with logname)
+TERMINAL_USERNAME=$(logname)
+
+# If logname doesn't work, use the $SUDO_USER or $USER global var
+if [ -z "$TERMINAL_USERNAME" ]; then
+
+    if [ -z "$SUDO_USER" ]; then
+    TERMINAL_USERNAME=$USER
+    else
+    TERMINAL_USERNAME=$SUDO_USER
+    fi
+
+fi
+
+
+# Quit if ACTUAL USERNAME is root
+if [ "$TERMINAL_USERNAME" == "root" ]; then 
+
+ echo " "
+ echo "${red}Please run as a NORMAL USER WITH 'sudo' PERMISSIONS (NOT LOGGED IN AS 'root').${reset}"
+ echo " "
+ echo "${cyan}Exiting...${reset}"
+ echo " "
+ 
+ exit
+
+# Quit if running with sudo (since we want to run a few things as the user in here)
+elif [ "$EUID" == 0 ]; then 
+
+echo " "
+echo "${red}Please run #WITHOUT# 'sudo' PERMISSIONS.${reset}"
+echo " "
+echo "${cyan}Exiting...${reset}"
+echo " "
+             
+exit
+             
+fi
+
+
+######################################
+
+
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
 
