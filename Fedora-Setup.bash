@@ -23,7 +23,7 @@
 
 # Config
 
-PREFERRED_HOSTNAME="taoteh1221-Server-Rock5b-Lin"
+PREFERRED_HOSTNAME="rock5b"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
@@ -120,8 +120,9 @@ sudo dnf upgrade -y
 sleep 3
 
 # Install building / system tools
-sudo dnf install -y --skip-broken kernel-devel-`uname -r` kernel-headers kernel-devel gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
-####
+sudo dnf install -y --skip-broken kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
+
+# Install dev tools
 sudo dnf group install -y --skip-broken c-development container-management d-development development-tools rpm-development-tools
 
 # Install samba tools
