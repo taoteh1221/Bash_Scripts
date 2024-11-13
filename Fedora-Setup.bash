@@ -19,6 +19,9 @@
 # for boot module loading, on secure boot enabled systems (ENABLES boot module loading [in secure boot mode])
 # YOU MUST WAIT, AND RUN THIS MODULE-SIGNING MODE AFTER INSTALLING DRIVERS, AND AFTER ENROLLING THE MOK KEY!
 ####
+# "./Fedora-Setup.bash arm_xz_image_to_device" runs this script in ARM (xz) disk image to storage device setup mode,
+# for downloading and installing an ARM disk image to a storage device (to boot an OS from that storage device, etc)
+####
 
 
 # Config
@@ -114,6 +117,97 @@ fi
 ######################################
 
 
+# Install an ARM disk image to a storage device
+if [ "$IS_ARM" != "" ] && [ "$1" == "arm_xz_image_to_device" ] && [ "$2" != "" ] && [ "$3" != "" ]; then
+
+# Install curl
+sudo dnf install -y curl
+
+sleep 2
+
+URL_STATUS=$(curl --head --silent --write-out "%{http_code}" --output /dev/null ${3})
+
+
+    if [ -f "$2" ] && [ $URL_STATUS -eq 200 ]; then
+
+    echo "${yellow} "
+    read -n1 -s -r -p $"ANY PREVIOUS DATA ON DEVICE '${2}' WILL BE ERASED. Press Y to continue (or press N to exit)..." key
+    echo "${reset} "
+     
+         if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+         echo " "
+         echo "${green}Continuing...${reset}"
+         echo " "
+         else
+         echo " "
+         echo "${green}Exiting...${reset}"
+         echo " "
+         exit
+         fi
+                    
+    echo " "
+    echo "${cyan}Downloading and writing XZ disk image to device '${2}', please wait..."
+    echo "${reset} "
+
+    wget --no-cache -O disk-image.img.xz ${3}
+
+    sleep 2
+
+    xz -dc disk-image.img.xz | sudo dd of=${2} bs=4k status=progress
+
+    sleep 2
+    
+    echo " "
+    echo "${cyan}XZ disk image finished writing to device '${2}'."
+    echo "${reset} "
+
+    elif [ ! -f "$2" ]; then
+
+    echo " "
+    echo "${red}Device '${2}' does NOT exist."
+    echo "${reset} "
+
+    elif [ $URL_STATUS -ne 200 ]; then
+
+    echo " "
+    echo "${red}XZ disk image parameter MUST BE a web link, your entered web link address '${3}' returned an error code: ${URL_STATUS}"
+    echo "${reset} "
+
+    fi
+
+
+exit
+
+elif [ "$IS_ARM" == "" ]; then
+
+echo " "
+echo "${red}Your system does NOT appear to be ARM-based."
+echo "${reset} "
+
+exit
+
+elif [ "$2" == "" ]; then
+
+echo " "
+echo "${red}Device parameter was NOT included."
+echo "${reset} "
+
+exit
+
+elif [ "$3" == "" ]; then
+
+echo " "
+echo "${red}XZ disk image parameter was NOT included."
+echo "${reset} "
+
+exit
+
+fi
+
+
+######################################
+
+
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
 
@@ -134,8 +228,16 @@ sudo dnf install -y --skip-broken ecryptfs-utils openssl
 # Install uboot tools (for making ARM disk images bootable, if device is NOT supported by arm-image-installer)
 sudo dnf install -y --skip-broken uboot-tools uboot-images-armv8 rkdeveloptool gdisk
 
-# IOT (ARM CPU) image installer (fedora raspi images to microsd, etc)
-sudo dnf install -y arm-image-installer
+# IOT (ARM CPU) image installer (fedora raspi images to microsd, etc), AND enable 'updates-testing' repo
+sudo dnf install --enablerepo=updates-testing -y arm-image-installer
+
+# Add repo to retrieve various uboot images
+sudo dnf copr enable pbrobinson/u-boot fedora-41-aarch64
+
+# Get various uboot images (are stored in: /usr/share/uboot/), for device flashing
+# https://lists.fedoraproject.org/archives/list/arm@lists.fedoraproject.org/thread/G3QENPQCNFTXSM5FZZLEUA6B7J4QKFXV/
+# https://nullr0ute.com/2021/05/fedora-on-the-pinebook-pro/ (CHANGE 'target' PARAM VALUE, TO MATCH YOUR BOARD)
+sudo dnf install uboot-images-copr
 
 
 # If we are DELETING a MOK (Machine Owner Key), for secure boot module signing
