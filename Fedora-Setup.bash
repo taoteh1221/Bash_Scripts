@@ -407,11 +407,11 @@ sleep 3
 # If we are doing a graphical interface setup (NOT headless / terminal-only)
 if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
 
-# Install games / media support / etc
+# GROUP INSTALLS for games / media support / etc
 sudo dnf group install -y --skip-broken audio 3d-printing editors games sound-and-video vlc
 
-# Install generic graphics card libraries, audio tools, and other interface-related libraries
-sudo dnf install -y --skip-broken libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras easyeffects
+# Install generic graphics card libraries, and other interface-related libraries
+sudo dnf install -y --skip-broken libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
 
 # Install cinnamon desktop
 sudo dnf install -y @cinnamon-desktop-environment
@@ -443,8 +443,11 @@ sudo dnf group install -y lxde-desktop
 # Install preferred file archiving tools
 sudo dnf install -y --skip-broken p7zip p7zip-plugins unrar ark engrampa
 
-# Install preferred disk tools
+# Install gparted, for partition editing
 sudo dnf install -y gparted
+
+# Install easyeffects, for sound volume leveling (compression) of TV / Movies
+sudo dnf install -y easyeffects
 
 # Install 'passwords and keys' and Kgpg (GPG import / export) interfaces
 sudo dnf install -y --skip-broken seahorse kgpg
