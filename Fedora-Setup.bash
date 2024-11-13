@@ -410,8 +410,8 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
 # Install games / media support / etc
 sudo dnf group install -y --skip-broken audio 3d-printing editors games sound-and-video vlc
 
-# Install generic graphics card libraries, and other interface-related libraries
-sudo dnf install -y --skip-broken libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
+# Install generic graphics card libraries, audio tools, and other interface-related libraries
+sudo dnf install -y --skip-broken libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras easyeffects
 
 # Install cinnamon desktop
 sudo dnf install -y @cinnamon-desktop-environment
