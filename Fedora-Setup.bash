@@ -480,6 +480,12 @@ sudo dnf install -y --skip-broken VirtualBox virt-manager edk2-ovmf swtpm-tools 
 # Install darkplaces-quake, steam, AND lutris
 sudo dnf install -y --skip-broken darkplaces-quake darkplaces-quake-server steam lutris
 
+# Install spotify
+sudo flatpak install -y flathub com.spotify.Client
+
+# Install cinny (Matrix chat client)
+sudo flatpak install -y flathub in.cinny.Cinny
+
 # Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
 # https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
 sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
