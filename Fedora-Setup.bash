@@ -225,19 +225,32 @@ sudo dnf install -y cifs-utils
 # Install home directory encryption tools, openssl
 sudo dnf install -y --skip-broken ecryptfs-utils openssl
 
-# Install uboot tools (for making ARM disk images bootable, if device is NOT supported by arm-image-installer)
+# Install uboot tools (for making ARM disk images bootable)
 sudo dnf install -y --skip-broken uboot-tools uboot-images-armv8 rkdeveloptool gdisk
 
-# IOT (ARM CPU) image installer (fedora raspi images to microsd, etc), AND enable 'updates-testing' repo
+# IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc), AND enable 'updates-testing' repo
+# https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
 sudo dnf install --enablerepo=updates-testing -y arm-image-installer
 
-# Add repo to retrieve various uboot images
+# Add repo to have various FEDORA-COMPATIBLE uboot images
+# (LAST PARAMETER IS OPTIONAL [OR REQUIRED, IF INSTALLED ON A DIFFERENT DEVICE WITHOUT A MATCHING ARCHITECTURE])
 sudo dnf copr enable pbrobinson/u-boot fedora-41-aarch64
 
-# Get various uboot images (are stored in: /usr/share/uboot/), for device flashing
-# https://lists.fedoraproject.org/archives/list/arm@lists.fedoraproject.org/thread/G3QENPQCNFTXSM5FZZLEUA6B7J4QKFXV/
-# https://nullr0ute.com/2021/05/fedora-on-the-pinebook-pro/ (CHANGE 'target' PARAM VALUE, TO MATCH YOUR BOARD)
+# Get Fedora uboot images (are stored in: /usr/share/uboot/), for device flashing
 sudo dnf install uboot-images-copr
+
+####
+# Fedora u-boot USAGE...
+####
+# General U-boot Flashing Notice:
+# https://lists.fedoraproject.org/archives/list/arm@lists.fedoraproject.org/thread/G3QENPQCNFTXSM5FZZLEUA6B7J4QKFXV/
+# Flash to microsd for USB boot, or to onboard SPI for M2 boot (see further below for Fedora-compatible onboard SPI flash directions,
+# DO NOT USE Radxa's [or any other OEM's] SPI flash method for Fedora support, as it's NOT compatible, and can brick your device!)
+####
+# Onboard SPI Flashing:
+# https://nullr0ute.com/2021/05/fedora-on-the-pinebook-pro/
+# (CHANGE 'target' PARAM VALUE TO MATCH YOUR DEVICE, OR JUST KEEP THE PINEBOOK PRO TARGET,
+# AND MANUALLY OVERWRITE THE UBOOT FILES CREATED ON THE MICROSD, WITH YOUR DEVICE'S FILES FROM: /usr/share/uboot/)
 
 
 # If we are DELETING a MOK (Machine Owner Key), for secure boot module signing
