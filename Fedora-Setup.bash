@@ -20,7 +20,8 @@
 # for boot module loading, on secure boot enabled systems (ENABLES boot module loading [in secure boot mode])
 # YOU MUST WAIT, AND RUN THIS MODULE-SIGNING MODE AFTER INSTALLING DRIVERS, AND AFTER ENROLLING THE MOK KEY!
 ####
-# "./Fedora-Setup.bash arm_xz_image_to_device" runs this script in ARM (xz) disk image to storage device setup mode,
+# "./Fedora-Setup.bash arm_image_to_device /dev/DEVICE_NAME https://website.address/your-disk-image.img.xz"
+# Above command runs this script in ARM (xz) disk image to storage device setup mode,
 # for downloading and installing an ARM disk image to a storage device (to boot an OS from that storage device, etc)
 ####
 
@@ -119,7 +120,7 @@ fi
 
 
 # Install an ARM disk image to a storage device
-if [ "$IS_ARM" != "" ] && [ "$1" == "arm_xz_image_to_device" ] && [ "$2" != "" ] && [ "$3" != "" ]; then
+if [ "$IS_ARM" != "" ] && [ "$1" == "arm_image_to_device" ] && [ "$2" != "" ] && [ "$3" != "" ]; then
 
 # Install curl
 sudo dnf install -y curl
@@ -128,8 +129,10 @@ sleep 2
 
 URL_STATUS=$(curl --head --silent --write-out "%{http_code}" --output /dev/null ${3})
 
+ALREADY_MOUNTED=$(findmnt | grep "${2}")
 
-    if [ -f "$2" ] && [ $URL_STATUS -eq 200 ]; then
+
+    if [ -f "$2" ] && [ "$ALREADY_MOUNTED" == "" ] && [ $URL_STATUS -eq 200 ]; then
 
     echo "${yellow} "
     read -n1 -s -r -p $"ANY PREVIOUS DATA ON DEVICE '${2}' WILL BE ERASED. Press Y to continue (or press N to exit)..." key
@@ -166,6 +169,12 @@ URL_STATUS=$(curl --head --silent --write-out "%{http_code}" --output /dev/null 
 
     echo " "
     echo "${red}Device '${2}' does NOT exist."
+    echo "${reset} "
+
+    elif [ "$ALREADY_MOUNTED" != "" ]; then
+
+    echo " "
+    echo "${red}Device '${2}' is already mounted."
     echo "${reset} "
 
     elif [ $URL_STATUS -ne 200 ]; then
@@ -231,6 +240,10 @@ sudo dnf install -y --skip-broken uboot-tools uboot-images-armv8 rkdeveloptool g
 
 # IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc), AND enable 'updates-testing' repo
 # https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
+# All board ids (filenames) in /usr/share/arm-image-installer/boards.d/ are the available
+# (fully supported) "target" parameter values for disk writing uboot automatically to same storage as the rootfs image
+# Headless setup w/ wifi:
+# https://www.redhat.com/en/blog/fedora-iot-raspberry-pi
 sudo dnf install --enablerepo=updates-testing -y arm-image-installer
 
 # Add repo to have various FEDORA-COMPATIBLE uboot images
@@ -252,6 +265,8 @@ sudo dnf install uboot-images-copr
 # https://nullr0ute.com/2021/05/fedora-on-the-pinebook-pro/
 # (CHANGE 'target' PARAM VALUE TO MATCH YOUR DEVICE, OR JUST KEEP THE PINEBOOK PRO TARGET,
 # AND MANUALLY OVERWRITE THE UBOOT FILES CREATED ON THE MICROSD, WITH YOUR DEVICE'S FILES FROM: /usr/share/uboot/)
+# IMPORTANT NOTE:
+# Rock5b devices WILL NOT SUPPORT HDMI DISPLAY OUTPUT UNTIL LINUX KERNEL v6.13, SO ONBOARD SPI FLASH CAN ONLY BE DONE FLYING BLIND (GOOD LUCK, I GAVE UP)
 
 
 # If we are DELETING a MOK (Machine Owner Key), for secure boot module signing
