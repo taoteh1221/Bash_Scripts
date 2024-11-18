@@ -28,13 +28,13 @@
 
 # Config
 
-PREFERRED_HOSTNAME="rock5b"
+PREFERRED_HOSTNAME="fedora-host"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
 INSTALL_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
-HEADLESS_SETUP_ONLY="yes" # "no" / "yes"
+HEADLESS_SETUP_ONLY="no" # "no" / "yes"
 
 # END Config
 
@@ -279,14 +279,39 @@ echo "${reset} "
 sudo mokutil --reset
 
 echo " "
-echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Reset MOK / Yes' -> 'Continue / Reboot', ENTER THE PIN YOU CREATED / REBOOT, to remove MOK module signing!"
-echo "${reset} "
-
-echo " "
 echo "Exiting MOK reset..."
 echo " "
 
-# EXIT
+echo " "
+echo "${red}YOU MUST NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Reset MOK / Yes' -> 'Continue / Reboot', ENTER THE PIN YOU CREATED / REBOOT, to remove MOK module signing!"
+echo "${reset} "
+
+echo "${red} "
+read -n1 -s -r -p $"Press Y to REBOOT (or press N to exit this script)..." key
+echo "${reset} "
+        
+        
+       if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+            
+       echo " "
+       echo "${green}Rebooting...${reset}"
+       echo " "
+            
+       sudo reboot
+            
+       else
+            
+       echo " "
+       echo "${green}Exiting...${reset}"
+       echo " "
+            
+       exit
+            
+       fi
+        
+        
+echo " "
+        
 exit
 
 # If we are CREATING a MOK (Machine Owner Key), for secure boot module signing
@@ -359,11 +384,39 @@ elif [ "$1" == "sign_secureboot_modules" ]; then
 sudo akmods --force --rebuild
 
 echo " "
-echo "${red}REBOOT YOUR MACHINE ONE LAST TIME, TO ALLOW LOADING ALL MODULES IN SECURE BOOT MODE."
-echo "${reset} "
 echo "Finished module-signing setup..."
 echo " "
 
+echo " "
+echo "${red}REBOOT YOUR MACHINE ONE LAST TIME, TO ALLOW LOADING ALL MODULES IN SECURE BOOT MODE."
+echo "${reset} "
+
+echo "${red} "
+read -n1 -s -r -p $"Press Y to REBOOT (or press N to exit this script)..." key
+echo "${reset} "
+        
+        
+       if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+            
+       echo " "
+       echo "${green}Rebooting...${reset}"
+       echo " "
+            
+       sudo reboot
+            
+       else
+            
+       echo " "
+       echo "${green}Exiting...${reset}"
+       echo " "
+            
+       exit
+            
+       fi
+        
+        
+echo " "
+        
 exit
 
 fi
@@ -479,7 +532,7 @@ sudo dnf install -y --skip-broken @cinnamon-desktop-environment nemo-dropbox
 
 # Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
 # (whole system got borked HARD running it daily for a couple weeks, FOR FIRST DAILY USAGE EVER..IDK)
-#sudo dnf install -y --skip-broken @kde-desktop dolphin-plugins
+#sudo dnf install -y --skip-broken @kde-desktop dolphin-plugins kgpg
 
 sleep 3
 
@@ -495,8 +548,8 @@ sudo dnf install -y gparted
 # Install easyeffects, for sound volume leveling (compression) of TV / Movies
 sudo dnf install -y easyeffects
 
-# Install 'passwords and keys' and Kgpg (GPG import / export) interfaces
-sudo dnf install -y --skip-broken seahorse kgpg
+# Install 'passwords and keys' (GPG import / export)
+sudo dnf install -y seahorse
 
 # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
 # AND evolution email / calendar
