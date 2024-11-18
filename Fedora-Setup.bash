@@ -188,7 +188,7 @@ ALREADY_MOUNTED=$(findmnt | grep "${2}")
 
 exit
 
-elif [ "$IS_ARM" == "" ]; then
+elif [ "$IS_ARM" == "" ] && [ "$1" == "arm_image_to_device" ]; then
 
 echo " "
 echo "${red}Your system does NOT appear to be ARM-based."
@@ -196,7 +196,7 @@ echo "${reset} "
 
 exit
 
-elif [ "$2" == "" ]; then
+elif [ "$2" == "" ] && [ "$1" == "arm_image_to_device" ]; then
 
 echo " "
 echo "${red}Device parameter was NOT included."
@@ -204,7 +204,7 @@ echo "${reset} "
 
 exit
 
-elif [ "$3" == "" ]; then
+elif [ "$3" == "" ] && [ "$1" == "arm_image_to_device" ]; then
 
 echo " "
 echo "${red}XZ disk image parameter was NOT included."
