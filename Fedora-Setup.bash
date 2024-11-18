@@ -556,8 +556,8 @@ sudo dnf install -y seahorse
 sudo dnf config-manager --enable google-chrome
 sudo dnf install -y google-chrome-stable evolution
 
-# Library needed for FileZilla Pro
-sudo dnf install -y libxcrypt-compat
+# Library needed for FileZilla Pro, and Fedora USB disk image creator
+sudo dnf install -y libxcrypt-compat liveusb-creator
 
 # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
 sudo dnf install -y --skip-broken VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
