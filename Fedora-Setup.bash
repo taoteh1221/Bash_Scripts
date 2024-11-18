@@ -32,7 +32,7 @@ PREFERRED_HOSTNAME="rock5b"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
-ENABLE_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
+INSTALL_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
 HEADLESS_SETUP_ONLY="yes" # "no" / "yes"
 
@@ -319,7 +319,39 @@ echo " "
 echo "${cyan}Finished MOK setup..."
 echo "${reset} "
 
-MOK_SETUP=1
+echo " "
+echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
+echo "AFTER REBOOTING, IF YOU ALREADY INSTALLED NVIDIA / VIRTUALBOX, RERUN this script with the 'sign_secureboot_modules' parameter, TO ENABLE SECURE BOOT ON ALL MODULES:"
+echo "${cyan}./Fedora-Setup.bash sign_secureboot_modules"
+echo "${reset} "
+
+echo "${red} "
+read -n1 -s -r -p $"Press Y to REBOOT (or press N to exit this script)..." key
+echo "${reset} "
+        
+        
+       if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+            
+       echo " "
+       echo "${green}Rebooting...${reset}"
+       echo " "
+            
+       sudo reboot
+            
+       else
+            
+       echo " "
+       echo "${green}Exiting...${reset}"
+       echo " "
+            
+       exit
+            
+       fi
+        
+        
+echo " "
+        
+exit
 
 # Sign secure boot modules
 elif [ "$1" == "sign_secureboot_modules" ]; then
@@ -358,7 +390,7 @@ fi
 
 
 # If we are enabling cockpit, for remote admin UI ability
-if [ "$ENABLE_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
+if [ "$INSTALL_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
 
 sudo dnf install -y cockpit
 
@@ -443,31 +475,16 @@ sudo dnf group install -y --skip-broken audio 3d-printing editors games sound-an
 sudo dnf install -y --skip-broken libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
 
 # Install cinnamon desktop
-sudo dnf install -y @cinnamon-desktop-environment
+sudo dnf install -y --skip-broken @cinnamon-desktop-environment nemo-dropbox
 
-#Install KDE
-sudo dnf install -y @kde-desktop
+# Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
+# (whole system got borked HARD running it daily for a couple weeks, FOR FIRST DAILY USAGE EVER..IDK)
+#sudo dnf install -y --skip-broken @kde-desktop dolphin-plugins
 
 sleep 3
 
-# KDE double click interval
-KDE_MOUSE_CHECK=$(sed -n '/DoubleClickInterval/p' ~/.config/kdeglobals)
-
-
-    if [ "$KDE_MOUSE_CHECK" == "" ]; then
-    # Place directly below [KDE], if it does NOT exist
-    sed -i '/\[KDE\]/a DoubleClickInterval=1000' ~/.config/kdeglobals > /dev/null 2>&1
-    else
-    # Replace with preferred setting, if exists
-    sed -i 's/DoubleClickInterval=.*/DoubleClickInterval=1000/g' ~/.config/kdeglobals > /dev/null 2>&1
-    fi
-
-
-# Install dropbox for nemo / dolphin (file explorers)
-sudo dnf install -y --skip-broken nemo-dropbox dolphin-plugins
-
-#Install LXDE
-sudo dnf group install -y lxde-desktop
+# IF YOU WANT IT, Install LXDE
+#sudo dnf group install -y lxde-desktop
 
 # Install preferred file archiving tools
 sudo dnf install -y --skip-broken p7zip p7zip-plugins unrar ark engrampa
@@ -498,21 +515,22 @@ sudo dnf install -y --skip-broken darkplaces-quake darkplaces-quake-server steam
 # Install spotify
 sudo flatpak install -y flathub com.spotify.Client
 
-# Install cinny (Matrix chat client)
-sudo flatpak install -y flathub in.cinny.Cinny
+# Install Element (Matrix chat client)
+sudo flatpak install -y flathub im.riot.Riot
 
 # Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
 # https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
 sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
 
-# If running a geforce graphics card, install the drivers
 NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
-
-    if [ "$NVIDIA_GEFORCE" != "" ]; then
+    
+    # If running a geforce graphics card, install the drivers, IF WE ALREADY SETUP A MOK
+    if [ "$NVIDIA_GEFORCE" != "" ] && [ -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ -f "/var/lib/shim-signed/mok/MOK.der" ]; then
 
     #https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
-    sudo dnf reinstall -y linux-firmware
+    # (IF YOU BORK UP A NVIDIA UNINSTALL)
+    #sudo dnf reinstall -y linux-firmware
 
     sleep 3
 
@@ -522,7 +540,8 @@ NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
     # https://forums.developer.nvidia.com/t/major-kde-plasma-desktop-frameskip-lag-issues-on-driver-555/293606
     # https://download.nvidia.com/XFree86/Linux-x86_64/510.60.02/README/gsp.html
-    sudo grubby --update-kernel=ALL --args=nvidia.NVreg_EnableGpuFirmware=0
+    # IF YOU USE KDE?! IDK
+    #sudo grubby --update-kernel=ALL --args=nvidia.NVreg_EnableGpuFirmware=0
 
     fi
 
@@ -540,7 +559,8 @@ sudo grub2-editenv - unset menu_auto_hide
 sudo sed -i "s/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=${SECONDS_TO_SHOW_BOOT_MENU}/g" /etc/default/grub > /dev/null 2>&1
 
 # Have grub show verbose startup / shutdown screens
-sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
+# (NOT SURE FEDORA DEBUGS THIS MODE TOO WELL?!)
+#sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
 
 # Remove WINDOWS BOOT MANAGER from grub
 # (MODERN SECURE BOOT ENABLED setups now usually require booting windows from the UEFI boot menu hotkey at startup,
@@ -568,17 +588,6 @@ if [ "$NVIDIA_GEFORCE" != "" ]; then
 
 echo " "
 echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
-echo "${reset} "
-
-fi
-
-
-if [ "$MOK_SETUP" = "1" ]; then
-
-echo " "
-echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
-echo "AFTER REBOOTING, RERUN this script with the 'sign_secureboot_modules' parameter, TO ENABLE SECURE BOOT ON ALL MODULES:"
-echo "${cyan}./Fedora-Setup.bash sign_secureboot_modules"
 echo "${reset} "
 
 fi
