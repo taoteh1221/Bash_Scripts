@@ -297,7 +297,7 @@ echo "${reset} "
        echo "${green}Rebooting...${reset}"
        echo " "
             
-       sudo reboot
+       sudo shutdown -r now
             
        else
             
@@ -361,7 +361,7 @@ echo "${reset} "
        echo "${green}Rebooting...${reset}"
        echo " "
             
-       sudo reboot
+       sudo shutdown -r now
             
        else
             
@@ -402,7 +402,7 @@ echo "${reset} "
        echo "${green}Rebooting...${reset}"
        echo " "
             
-       sudo reboot
+       sudo shutdown -r now
             
        else
             
