@@ -567,8 +567,8 @@ sudo dnf install -y gparted
 # Install easyeffects, for sound volume leveling (compression) of TV / Movies
 sudo dnf install -y easyeffects
 
-# Install 'passwords and keys' and kgpg (GPG import / export)
-sudo dnf install -y --skip-broken --skip-unavailable seahorse kgpg
+# Install 'passwords and keys' and kleopatra (GPG import / export)
+sudo dnf install -y --skip-broken --skip-unavailable seahorse kleopatra
 
 # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
 # AND evolution email / calendar
