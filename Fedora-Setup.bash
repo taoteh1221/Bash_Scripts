@@ -632,8 +632,8 @@ sudo grub2-editenv - unset menu_auto_hide
 sudo sed -i "s/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=${SECONDS_TO_SHOW_BOOT_MENU}/g" /etc/default/grub > /dev/null 2>&1
 
 # Have grub show verbose startup / shutdown screens
-# (NOT SURE FEDORA DEBUGS THIS MODE TOO WELL?!)
-#sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
+# (NOT SURE FEDORA DEBUGS VERBOSE STARTUP MODE UX TOO WELL, BUT IT CLEARLY SHOWS WHEN ISSUES ARE HAPPENING)
+sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
 
 # Remove WINDOWS BOOT MANAGER from grub
 # (MODERN SECURE BOOT ENABLED setups now usually require booting windows from the UEFI boot menu hotkey at startup,
