@@ -14,27 +14,30 @@
 ####
 # "./Fedora-Setup.bash reset_secureboot_mok" runs this script in RESET MOK (Machine Owner Key) setup mode,
 # for RESETTING boot module signing, on secure boot enabled systems
-# (RESETS / REMOVES boot module signing support [HELPS IF YOU HAVE MOK ISSUES...THEN YOU CAN RE-ENROLL AFTERWARDS])
+# (RESETS / REMOVES boot module signing support [HELPS IF YOU HAVE MOK ISSUES, OR ARE REINSTALLING THE OS...THEN YOU CAN RE-ENROLL AFTERWARDS])
 ####
 # "./Fedora-Setup.bash sign_secureboot_modules" runs this script in SIGN MODULES (for secure boot) setup mode,
 # for boot module loading, on secure boot enabled systems (ENABLES boot module loading [in secure boot mode])
-# YOU MUST WAIT, AND RUN THIS MODULE-SIGNING MODE AFTER INSTALLING DRIVERS, AND AFTER ENROLLING THE MOK KEY!
+# YOU MUST WAIT, AND RUN THIS MODULE-SIGNING MODE AFTER INSTALLING DRIVERS, AND AFTER ENROLLING THE MOK KEY (BEFORE DRIVER INSTALLATION)!
+# THIS IS ALSO AUTOMATICALLY RUN AT THE VERY END OF THIS SCRIPT, SO YOU WON'T NEED IT UNLESS YOU HAVE INITIAL SETUP ISSUES (LOL)
 ####
-# "./Fedora-Setup.bash arm_image_to_device /dev/DEVICE_NAME https://website.address/your-disk-image.img.xz"
+# "./Fedora-Setup.bash arm_image_to_device  /dev/DEVICE_NAME  https://website.address/your-disk-image.img.xz"
 # Above command runs this script in ARM (xz) disk image to storage device setup mode,
-# for downloading and installing an ARM disk image to a storage device (to boot an OS from that storage device, etc)
+# for downloading and installing an ARM disk image to a storage device (to boot an OS from that storage device [M2 drive, etc])
 ####
 
 
 # Config
 
-PREFERRED_HOSTNAME="fedora-host"
+PREFERRED_HOSTNAME="taoteh1221-desk-asus-lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
 INSTALL_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
+
+UBOOT_DEV_BUILDS="fedora-41-aarch64" # Leave BLANK "", to use host's architecture
 
 # END Config
 
@@ -119,13 +122,31 @@ fi
 ######################################
 
 
+# Update PACKAGES (NOT operating system version)
+sudo dnf upgrade -y
+
+sleep 3
+
+# Install building / system tools
+sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
+
+# Install dev tools
+sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools
+
+# Install samba tools
+sudo dnf install -y cifs-utils
+
+# Install home directory encryption tools, openssl, curl
+sudo dnf install -y --skip-broken --skip-unavailable ecryptfs-utils openssl curl
+
+sleep 3
+
+
+######################################
+
+
 # Install an ARM disk image to a storage device
 if [ "$IS_ARM" != "" ] && [ "$1" == "arm_image_to_device" ] && [ "$2" != "" ] && [ "$3" != "" ]; then
-
-# Install curl
-sudo dnf install -y curl
-
-sleep 2
 
 URL_STATUS=$(curl --head --silent --write-out "%{http_code}" --output /dev/null ${3})
 
@@ -216,57 +237,6 @@ fi
 
 
 ######################################
-
-
-# Update PACKAGES (NOT operating system version)
-sudo dnf upgrade -y
-
-sleep 3
-
-# Install building / system tools
-sudo dnf install -y --skip-broken kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
-
-# Install dev tools
-sudo dnf group install -y --skip-broken c-development container-management d-development development-tools rpm-development-tools
-
-# Install samba tools
-sudo dnf install -y cifs-utils
-
-# Install home directory encryption tools, openssl
-sudo dnf install -y --skip-broken ecryptfs-utils openssl
-
-# Install uboot tools (for making ARM disk images bootable)
-sudo dnf install -y --skip-broken uboot-tools uboot-images-armv8 rkdeveloptool gdisk
-
-# IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc), AND enable 'updates-testing' repo
-# https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
-# All board ids (filenames) in /usr/share/arm-image-installer/boards.d/ are the available
-# (fully supported) "target" parameter values for disk writing uboot automatically to same storage as the rootfs image
-# Headless setup w/ wifi:
-# https://www.redhat.com/en/blog/fedora-iot-raspberry-pi
-sudo dnf install --enablerepo=updates-testing -y arm-image-installer
-
-# Add repo to have various FEDORA-COMPATIBLE uboot images
-# (LAST PARAMETER IS OPTIONAL [OR REQUIRED, IF INSTALLED ON A DIFFERENT DEVICE WITHOUT A MATCHING ARCHITECTURE])
-sudo dnf copr enable pbrobinson/u-boot fedora-41-aarch64
-
-# Get Fedora uboot images (are stored in: /usr/share/uboot/), for device flashing
-sudo dnf install uboot-images-copr
-
-####
-# Fedora u-boot USAGE...
-####
-# General U-boot Flashing Notice:
-# https://lists.fedoraproject.org/archives/list/arm@lists.fedoraproject.org/thread/G3QENPQCNFTXSM5FZZLEUA6B7J4QKFXV/
-# Flash to microsd for USB boot, or to onboard SPI for M2 boot (see further below for Fedora-compatible onboard SPI flash directions,
-# DO NOT USE Radxa's [or any other OEM's] SPI flash method for Fedora support, as it's NOT compatible, and can brick your device!)
-####
-# Onboard SPI Flashing:
-# https://nullr0ute.com/2021/05/fedora-on-the-pinebook-pro/
-# (CHANGE 'target' PARAM VALUE TO MATCH YOUR DEVICE, OR JUST KEEP THE PINEBOOK PRO TARGET,
-# AND MANUALLY OVERWRITE THE UBOOT FILES CREATED ON THE MICROSD, WITH YOUR DEVICE'S FILES FROM: /usr/share/uboot/)
-# IMPORTANT NOTE:
-# Rock5b devices WILL NOT SUPPORT HDMI DISPLAY OUTPUT UNTIL LINUX KERNEL v6.13, SO ONBOARD SPI FLASH CAN ONLY BE DONE FLYING BLIND (GOOD LUCK, I GAVE UP)
 
 
 # If we are DELETING a MOK (Machine Owner Key), for secure boot module signing
@@ -423,7 +393,7 @@ fi
 # END CLI params logic
 
 
-sleep 3
+######################################
 
 
 # Check to see if MOK secure boot module signing KEYS have already been setup
@@ -442,6 +412,9 @@ exit
 fi
 
 
+######################################
+
+
 # If we are enabling cockpit, for remote admin UI ability
 if [ "$INSTALL_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
 
@@ -457,6 +430,23 @@ sudo firewall-cmd --add-service=cockpit --permanent
 
 fi
 
+
+######################################
+
+
+# Set hostname
+sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
+
+# Secure user home directory, from other accounts snooping it
+sudo chmod 750 /home/$USER
+
+# Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
+# As user
+timedatectl set-local-rtc 0
+# As admin too
+sudo timedatectl set-local-rtc 0
+
+sleep 3
 
 # Set default (user) editors to nano
 DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
@@ -477,19 +467,8 @@ sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&
 fi
 
 
-# Set hostname
-sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
+######################################
 
-# Secure user home directory, from other accounts snooping it
-sudo chmod 750 /home/$USER
-
-# Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
-# As user
-timedatectl set-local-rtc 0
-# As admin too
-sudo timedatectl set-local-rtc 0
-
-sleep 3
 
 # Enable FUSION repos
 sudo dnf install -y \
@@ -505,6 +484,10 @@ sudo dnf makecache
 
 sleep 3
 
+
+######################################
+
+
 # Install cron / fire it up (will persist between reboots)
 sudo dnf install -y cronie
 
@@ -514,6 +497,40 @@ sudo systemctl start crond.service
 
 sleep 3
 
+# Install uboot tools (for making ARM disk images bootable)
+sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk
+
+# IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc),
+# Fedora USB disk image creator, AND enable 'updates-testing' repo
+# https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
+# All board ids (filenames) in /usr/share/arm-image-installer/boards.d/ are the available
+# (fully supported) "target" parameter values for disk writing uboot automatically to same storage as the rootfs image
+# Headless setup w/ wifi:
+# https://www.redhat.com/en/blog/fedora-iot-raspberry-pi
+sudo dnf install --enablerepo=updates-testing -y arm-image-installer liveusb-creator
+
+# Add repo to have various FEDORA-COMPATIBLE uboot images
+# (LAST PARAMETER IS OPTIONAL [OR REQUIRED, IF INSTALLED ON A DIFFERENT DEVICE WITHOUT A MATCHING ARCHITECTURE])
+sudo dnf copr enable -y pbrobinson/u-boot $UBOOT_DEV_BUILDS
+
+# Get Fedora uboot images (are stored in: /usr/share/uboot/), for device flashing
+sudo dnf install -y uboot-images-copr
+
+####
+# Fedora u-boot USAGE...
+####
+# General U-boot Flashing Notice:
+# https://lists.fedoraproject.org/archives/list/arm@lists.fedoraproject.org/thread/G3QENPQCNFTXSM5FZZLEUA6B7J4QKFXV/
+# Flash to microsd for USB boot, or to onboard SPI for M2 boot (see further below for Fedora-compatible onboard SPI flash directions,
+# DO NOT USE Radxa's [or any other OEM's] SPI flash method for Fedora support, as it's NOT compatible, and can brick your device!)
+####
+# Onboard SPI Flashing:
+# https://nullr0ute.com/2021/05/fedora-on-the-pinebook-pro/
+# (CHANGE 'target' PARAM VALUE TO MATCH YOUR DEVICE, OR JUST KEEP THE PINEBOOK PRO TARGET,
+# AND MANUALLY OVERWRITE THE UBOOT FILES CREATED ON THE MICROSD, WITH YOUR DEVICE'S FILES FROM: /usr/share/uboot/)
+# IMPORTANT NOTE:
+# Rock5b devices WILL NOT SUPPORT HDMI DISPLAY OUTPUT UNTIL LINUX KERNEL v6.13, SO ONBOARD SPI FLASH CAN ONLY BE DONE FLYING BLIND (GOOD LUCK, I GAVE UP)
+
 
 ##############################################################################
 ##############################################################################
@@ -522,25 +539,27 @@ sleep 3
 if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
 
 # GROUP INSTALLS for games / media support / etc
-sudo dnf group install -y --skip-broken audio 3d-printing editors games sound-and-video vlc
+sudo dnf group install -y --skip-broken --skip-unavailable audio 3d-printing editors games sound-and-video vlc
 
 # Install generic graphics card libraries, and other interface-related libraries
-sudo dnf install -y --skip-broken libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
+sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
 
 # Install cinnamon desktop
-sudo dnf install -y --skip-broken @cinnamon-desktop-environment nemo-dropbox
+sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
 
 # Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
-# (whole system got borked HARD running it daily for a couple weeks, FOR FIRST DAILY USAGE EVER..IDK)
-#sudo dnf install -y --skip-broken @kde-desktop dolphin-plugins kgpg
+# (whole system got borked HARD running it daily for a couple weeks w/ NVIDIA 3070,
+# FOR FIRST HEAVY DAILY USAGE EVER, AND USING THEIR SYSTEM UPDATER..IDK
+# [ALSO HAD A POWERED USB HUB GETTING PROBED / HINDERING SYSTEM STARTUP...YIKES])
+#sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
 
 sleep 3
 
-# IF YOU WANT IT, Install LXDE
+# IF YOU WANT IT, Install LXDE (NO KNOWN ISSUES)
 #sudo dnf group install -y lxde-desktop
 
 # Install preferred file archiving tools
-sudo dnf install -y --skip-broken p7zip p7zip-plugins unrar ark engrampa
+sudo dnf install -y --skip-broken --skip-unavailable p7zip p7zip-plugins rar unrar engrampa
 
 # Install gparted, for partition editing
 sudo dnf install -y gparted
@@ -548,28 +567,29 @@ sudo dnf install -y gparted
 # Install easyeffects, for sound volume leveling (compression) of TV / Movies
 sudo dnf install -y easyeffects
 
-# Install 'passwords and keys' (GPG import / export)
-sudo dnf install -y seahorse
+# Install 'passwords and keys' and kgpg (GPG import / export)
+sudo dnf install -y --skip-broken --skip-unavailable seahorse kgpg
 
 # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
 # AND evolution email / calendar
 sudo dnf config-manager --enable google-chrome
 sudo dnf install -y google-chrome-stable evolution
 
-# Library needed for FileZilla Pro, and Fedora USB disk image creator
-sudo dnf install -y libxcrypt-compat liveusb-creator
+# Install bluefish, meld, and library needed for FileZilla Pro
+sudo dnf install -y --skip-broken --skip-unavailable bluefish meld libxcrypt-compat
+
+# Add official linux github desktop repo, and install it
+sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
+
+sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://rpm.packages.shiftkey.dev/rpm/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://rpm.packages.shiftkey.dev/gpg.key" > /etc/yum.repos.d/shiftkey-packages.repo'
+
+sudo dnf install -y github-desktop
 
 # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
-sudo dnf install -y --skip-broken VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
+sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
 
 # Install darkplaces-quake, steam, AND lutris
-sudo dnf install -y --skip-broken darkplaces-quake darkplaces-quake-server steam lutris
-
-# Install spotify
-sudo flatpak install -y flathub com.spotify.Client
-
-# Install Element (Matrix chat client)
-sudo flatpak install -y flathub im.riot.Riot
+sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam lutris
 
 # Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
 # https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
@@ -587,7 +607,7 @@ NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
     sleep 3
 
-    sudo dnf install -y --skip-broken akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
+    sudo dnf install -y --skip-broken --skip-unavailable akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
 
     sleep 3
 
@@ -636,11 +656,40 @@ sudo grub2-mkconfig -o /etc/grub2.cfg
 # USE WITH CAUTION, THIS EVEN LOCKS DOWN RELATED INCOMING (INITIATED BY CLIENT REQUEST LOCALLY...BROWSER, INTERNET RADIO, ETC)!!!!!
 #sudo firewall-cmd --set-default-zone=FedoraServer
 
+sleep 3
+
+sudo akmods --force --rebuild
+
+# Install flatpaks, after video drivers (so video dependencies are installed)
+
+# Install spotify
+sudo flatpak install -y flathub com.spotify.Client
+
+# Install Element (Matrix chat client)
+sudo flatpak install -y flathub im.riot.Riot
+
+# Install Plex (streaming video client)
+sudo flatpak install -y flathub tv.plex.PlexDesktop
+
+# Install Discord (social channels client)
+sudo flatpak install -y flathub com.discordapp.Discord
+
+# Install Telegram (social channels client)
+sudo flatpak install -y flathub org.telegram.desktop
+
 
 if [ "$NVIDIA_GEFORCE" != "" ]; then
 
+# NVIDIA System monitor
+sudo flatpak install -y flathub io.github.congard.qnvsm
+
 echo " "
 echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
+echo " "
+echo "ADDITIONALLY, ALWAYS WAIT 10-15 MINUTES AFTER NVIDIA DRIVERS HAVE BEEN INSTALLED, BEFORE REBOOT / SHUTDOWN, AS SOMETIMES THE BOOT MODULES ARE STILL BEING BUILT SILENTLY IN THE BACKGROUND (NOT SURE WHY THIS UX IS SO HORRIBLE, BUT IT IS!)"
+echo " "
+echo "CURRENTLY, AS OF 2024/11/18, AFTER REBOOTING, YOU NEED TO ENABLE NVIDIA (AND VIRTUALBOX) VIA THEIR CUSTOM MOK (Machine Owner Key), AFTER SEARCHING 'nvidia' in the gnome software center, choose 'nvidia drivers', and click 'enable'. MORE INFO IS HERE:"
+echo "${cyan}https://fedoraproject.org/wiki/Changes/NvidiaInstallationWithSecureboot"
 echo "${reset} "
 
 fi
