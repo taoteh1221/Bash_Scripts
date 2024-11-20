@@ -29,7 +29,7 @@
 
 # Config
 
-PREFERRED_HOSTNAME="taoteh1221-desk-asus-lin"
+PREFERRED_HOSTNAME="taoteh1221-lap-asus-lin"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
@@ -291,13 +291,13 @@ elif [ "$1" == "enroll_secureboot_mok" ]; then
 
     
      # Check to see if MOK keys have already been setup
-     if [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
+     if sudo [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
 
      echo " "
-     echo "${cyan}Creating a MOK (Machine Owner Key) security certificate, for use with secure boot module signing, please wait..."
+     echo "${cyan}Creating a MOK (Machine Owner Key) security certificate, please fill in details when asked:"
      echo "${reset} "
 
-     sudo kmodgenca -a
+     sudo kmodgenca
      
      sleep 3
 
@@ -398,7 +398,7 @@ fi
 
 # Check to see if MOK secure boot module signing KEYS have already been setup
 # /usr/share/doc/akmods/README.secureboot
-if [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
+if sudo [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
 
 echo " "
 echo "${red}MOK (Machine Owner Key) secure boot module signing has NOT been setup yet, RERUN this script with the 'enroll_secureboot_mok' parameter:"
@@ -713,7 +713,7 @@ if [ ! -f "${HOME}/.fedora_setup_1st_run.dat" ]; then
     fi
     
 echo " "
-echo "AFTER REBOOTING, YOU NEED TO ENABLE NVIDIA OR VIRTUALBOX VIA THE MOK (Machine Owner Key) YOU JUST SET A PIN FOR. MORE INFO IS HERE:"
+echo "MORE INFO IS HERE, RELATED TO RUNNING BOOT MODULES IN SECURE BOOT MODE:"
 echo "${cyan}https://fedoraproject.org/wiki/Changes/NvidiaInstallationWithSecureboot"
 echo "/usr/share/doc/akmods/README.secureboot"
 echo "${reset} "
