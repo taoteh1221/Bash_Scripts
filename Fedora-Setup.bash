@@ -446,6 +446,10 @@ timedatectl set-local-rtc 0
 # As admin too
 sudo timedatectl set-local-rtc 0
 
+# Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
+# https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
+sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
+
 sleep 3
 
 # Set default (user) editors to nano
@@ -591,15 +595,24 @@ sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk
 # Install darkplaces-quake, steam, AND lutris
 sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam lutris
 
-# Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
-# https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
-sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
+mkdir -p $HOME/Downloads
+
+sleep 2
+
+# Install from TRUSTED 3rd party download locations
+
+# Balena Etcher
+wget --directory-prefix=${HOME}/Downloads https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
+
+sleep 2
+
+sudo dnf install -y $HOME/Downloads/balena-etcher-1.19.25-1.x86_64.rpm
 
 NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
     
-    # If running a geforce graphics card, install the drivers, IF WE ALREADY SETUP A MOK
-    if [ "$NVIDIA_GEFORCE" != "" ] && [ -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ -f "/var/lib/shim-signed/mok/MOK.der" ]; then
+    # If running a geforce graphics card, install the drivers / system monitor
+    if [ "$NVIDIA_GEFORCE" != "" ]; then
 
     #https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
     # (IF YOU BORK UP A NVIDIA UNINSTALL)
@@ -610,6 +623,9 @@ NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
     sudo dnf install -y --skip-broken --skip-unavailable akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
 
     sleep 3
+    
+    # NVIDIA System monitor
+    sudo flatpak install -y flathub io.github.congard.qnvsm     
 
     # https://forums.developer.nvidia.com/t/major-kde-plasma-desktop-frameskip-lag-issues-on-driver-555/293606
     # https://download.nvidia.com/XFree86/Linux-x86_64/510.60.02/README/gsp.html
@@ -618,6 +634,26 @@ NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
     fi
 
+
+# Install flatpaks, AFTER video drivers (so any proper video dependencies are installed)
+
+# Install spotify
+sudo flatpak install -y flathub com.spotify.Client
+
+# Install Element (Matrix chat client)
+sudo flatpak install -y flathub im.riot.Riot
+
+# Install Plex (streaming video client)
+sudo flatpak install -y flathub tv.plex.PlexDesktop
+
+# Install Discord (social channels client)
+sudo flatpak install -y flathub com.discordapp.Discord
+
+# Install Telegram (social channels client)
+sudo flatpak install -y flathub org.telegram.desktop
+
+# Install Zoom (video chat client)
+sudo flatpak install -y flathub us.zoom.Zoom
 
 fi
 
@@ -658,30 +694,11 @@ sudo grub2-mkconfig -o /etc/grub2.cfg
 
 sleep 3
 
+# Rebuild any nvidia / virtualbox / etc boot modules, and sign them with the appropriate MOK
 sudo akmods --force --rebuild
-
-# Install flatpaks, after video drivers (so video dependencies are installed)
-
-# Install spotify
-sudo flatpak install -y flathub com.spotify.Client
-
-# Install Element (Matrix chat client)
-sudo flatpak install -y flathub im.riot.Riot
-
-# Install Plex (streaming video client)
-sudo flatpak install -y flathub tv.plex.PlexDesktop
-
-# Install Discord (social channels client)
-sudo flatpak install -y flathub com.discordapp.Discord
-
-# Install Telegram (social channels client)
-sudo flatpak install -y flathub org.telegram.desktop
 
 
 if [ "$NVIDIA_GEFORCE" != "" ]; then
-
-# NVIDIA System monitor
-sudo flatpak install -y flathub io.github.congard.qnvsm
 
 echo " "
 echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
