@@ -240,6 +240,7 @@ fi
 
 
 # If we are DELETING a MOK (Machine Owner Key), for secure boot module signing
+# /usr/share/doc/akmods/README.secureboot
 if [ "$1" == "reset_secureboot_mok" ]; then
 
 echo " "
@@ -285,30 +286,29 @@ echo " "
 exit
 
 # If we are CREATING a MOK (Machine Owner Key), for secure boot module signing
+# /usr/share/doc/akmods/README.secureboot
 elif [ "$1" == "enroll_secureboot_mok" ]; then
 
     
      # Check to see if MOK keys have already been setup
-     if [ ! -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ ! -f "/var/lib/shim-signed/mok/MOK.der" ]; then
-
-     sudo mkdir -p /var/lib/shim-signed/mok
-
-     sleep 3
+     if [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
 
      echo " "
-     echo "${yellow}Create a MOK (Machine Owner Key) security certificate, for use with secure boot module signing:"
+     echo "${cyan}Creating a MOK (Machine Owner Key) security certificate, for use with secure boot module signing, please wait..."
      echo "${reset} "
 
-     sudo openssl req -nodes -new -x509 -newkey rsa:2048 -outform DER -addext "extendedKeyUsage=codeSigning" -keyout /var/lib/shim-signed/mok/MOK.priv -out /var/lib/shim-signed/mok/MOK.der
+     sudo kmodgenca -a
+     
+     sleep 3
 
      fi
 
 
 echo " "
-echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to ENROLL your MOK (Machine Owner Key), for secure boot module signing:"
+echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer (CONSIDER WRITING IT DOWN, SO YOU DON'T FORGET), to ENROLL your MOK (Machine Owner Key), for secure boot module signing:"
 echo "${reset} "
 
-sudo mokutil --import /var/lib/shim-signed/mok/MOK.der
+sudo mokutil --import /etc/pki/akmods/certs/public_key.der
 
 echo " "
 echo "${cyan}Finished MOK setup..."
@@ -397,7 +397,8 @@ fi
 
 
 # Check to see if MOK secure boot module signing KEYS have already been setup
-if [ ! -f "/var/lib/shim-signed/mok/MOK.priv" ] && [ ! -f "/var/lib/shim-signed/mok/MOK.der" ]; then
+# /usr/share/doc/akmods/README.secureboot
+if [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
 
 echo " "
 echo "${red}MOK (Machine Owner Key) secure boot module signing has NOT been setup yet, RERUN this script with the 'enroll_secureboot_mok' parameter:"
@@ -698,16 +699,26 @@ sleep 3
 sudo akmods --force --rebuild
 
 
-if [ "$NVIDIA_GEFORCE" != "" ]; then
+if [ ! -f "${HOME}/.fedora_setup_1st_run.dat" ]; then
 
+    # If running a geforce graphics card
+    if [ "$NVIDIA_GEFORCE" != "" ]; then
+    
+    echo " "
+    echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
+
+    echo " "
+    echo "ADDITIONALLY, ALWAYS WAIT 10-15 MINUTES AFTER NVIDIA DRIVERS HAVE BEEN INSTALLED, BEFORE REBOOT / SHUTDOWN, AS SOMETIMES THE BOOT MODULES ARE STILL BEING BUILT SILENTLY IN THE BACKGROUND (NOT SURE WHY THIS UX IS SO HORRIBLE, BUT IT IS!)"
+
+    fi
+    
 echo " "
-echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
-echo " "
-echo "ADDITIONALLY, ALWAYS WAIT 10-15 MINUTES AFTER NVIDIA DRIVERS HAVE BEEN INSTALLED, BEFORE REBOOT / SHUTDOWN, AS SOMETIMES THE BOOT MODULES ARE STILL BEING BUILT SILENTLY IN THE BACKGROUND (NOT SURE WHY THIS UX IS SO HORRIBLE, BUT IT IS!)"
-echo " "
-echo "CURRENTLY, AS OF 2024/11/18, AFTER REBOOTING, YOU NEED TO ENABLE NVIDIA (AND VIRTUALBOX) VIA THEIR CUSTOM MOK (Machine Owner Key), AFTER SEARCHING 'nvidia' in the gnome software center, choose 'nvidia drivers', and click 'enable'. MORE INFO IS HERE:"
+echo "AFTER REBOOTING, YOU NEED TO ENABLE NVIDIA OR VIRTUALBOX VIA THE MOK (Machine Owner Key) YOU JUST SET A PIN FOR. MORE INFO IS HERE:"
 echo "${cyan}https://fedoraproject.org/wiki/Changes/NvidiaInstallationWithSecureboot"
+echo "/usr/share/doc/akmods/README.secureboot"
 echo "${reset} "
+
+echo -e "ran" > ${HOME}/.fedora_setup_1st_run.dat
 
 fi
 
