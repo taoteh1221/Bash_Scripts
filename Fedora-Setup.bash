@@ -44,8 +44,12 @@ UBOOT_DEV_BUILDS="fedora-41-aarch64" # Leave BLANK "", to use host's architectur
 
 ######################################
 
+
 # Are we running on an ARM-based CPU?
 IS_ARM=$(uname -r | grep "aarch64")
+
+ISSUES_URL="https://github.com/taoteh1221/Fedora_Setup/issues"
+
 
 ######################################
 
@@ -117,6 +121,34 @@ echo " "
 exit
              
 fi
+
+
+######################################
+
+
+echo " "
+echo "${red}PLEASE READ THE USAGE DOCUMENTATION AT THE TOP OF THIS SCRIPT'S FILE, AND CONFIGURE THE SETTINGS DIRECTLY BELOW THAT DOCUMENTATION, BEFORE RUNNING THIS SCRIPT!"
+echo " "
+
+echo "${yellow}PLEASE REPORT ANY ISSUES HERE: $ISSUES_URL${reset}"
+echo " "
+
+echo "${yellow} "
+read -n1 -s -r -p $"Press Y to continue (or press N to exit)..." key
+echo "${reset} "
+
+    if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+    echo " "
+    echo "${green}Continuing...${reset}"
+    echo " "
+    else
+    echo " "
+    echo "${green}Exiting...${reset}"
+    echo " "
+    exit
+    fi
+
+echo " "
 
 
 ######################################
@@ -294,7 +326,7 @@ elif [ "$1" == "enroll_secureboot_mok" ]; then
      if sudo [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
 
      echo " "
-     echo "${cyan}Creating a MOK (Machine Owner Key) security certificate, please fill in details when asked:"
+     echo "${cyan}Creating a MOK (Machine Owner Key) security certificate, PLEASE FILL IN DETAILS BELOW, WHEN ASKED:"
      echo "${reset} "
 
      sudo kmodgenca
@@ -316,7 +348,7 @@ echo "${reset} "
 
 echo " "
 echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
-echo "AFTER REBOOTING, IF YOU ALREADY INSTALLED NVIDIA / VIRTUALBOX, RERUN this script with the 'sign_secureboot_modules' parameter, TO ENABLE SECURE BOOT ON ALL MODULES:"
+echo "AFTER REBOOTING, RERUN this script, TO INSTALL / ENABLE SECURE BOOT MODULES (VIRTUALBOX / NVIDIA, ETC):"
 echo "${cyan}./Fedora-Setup.bash sign_secureboot_modules"
 echo "${reset} "
 
@@ -535,6 +567,8 @@ sudo dnf install -y uboot-images-copr
 # AND MANUALLY OVERWRITE THE UBOOT FILES CREATED ON THE MICROSD, WITH YOUR DEVICE'S FILES FROM: /usr/share/uboot/)
 # IMPORTANT NOTE:
 # Rock5b devices WILL NOT SUPPORT HDMI DISPLAY OUTPUT UNTIL LINUX KERNEL v6.13, SO ONBOARD SPI FLASH CAN ONLY BE DONE FLYING BLIND (GOOD LUCK, I GAVE UP)
+# MORE RELEVANT ROCK5B SETUP NOTES ARE HERE:
+# https://yrzr.github.io/notes-build-uboot-for-rock5b/#3-collabora-u-boot-mainline
 
 
 ##############################################################################
