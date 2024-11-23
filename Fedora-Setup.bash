@@ -5,6 +5,9 @@
 ####
 # USAGE:
 ####
+# DOWNLOAD / RUN IT, WITH ONE COMMAND...
+# wget --no-cache -O Fedora-Setup.bash https://tinyurl.com/install-fedora-setup;chmod +x Fedora-Setup.bash;./Fedora-Setup.bash
+####
 # "chmod +x Fedora-Setup.bash" will make this script runnable / executable
 ####
 # "./Fedora-Setup.bash" runs this script in NORMAL setup mode
