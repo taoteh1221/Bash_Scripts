@@ -29,13 +29,16 @@
 
 # Config
 
-PREFERRED_HOSTNAME="taoteh1221-lap-asus-lin"
+PREFERRED_HOSTNAME="libre-fedora"
 
 SECONDS_TO_SHOW_BOOT_MENU=10
 
 INSTALL_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
+
+# GROUP installs to include, during NON-HEADLESS / INTERFACE setups
+INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc"
 
 UBOOT_DEV_BUILDS="fedora-41-aarch64" # Leave BLANK "", to use host's architecture
 
@@ -162,14 +165,20 @@ sleep 3
 # Install building / system tools
 sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
 
-# Install dev tools
-sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools
+# GROUP install dev tools / hardware support
+sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
-# Install samba tools
-sudo dnf install -y cifs-utils
+# Install samba / encryption tools, openssl, curl, flatpak, and nano
+sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl flatpak
 
-# Install home directory encryption tools, openssl, curl
-sudo dnf install -y --skip-broken --skip-unavailable ecryptfs-utils openssl curl
+sleep 3
+
+# Install cron / fire it up (will persist between reboots)
+sudo dnf install -y cronie
+
+sleep 3
+
+sudo systemctl start crond.service
 
 sleep 3
 
@@ -273,7 +282,7 @@ fi
 
 # If we are DELETING a MOK (Machine Owner Key), for secure boot module signing
 # /usr/share/doc/akmods/README.secureboot
-if [ "$1" == "reset_secureboot_mok" ]; then
+if [ "$IS_ARM" == "" ] && [ "$1" == "reset_secureboot_mok" ]; then
 
 echo " "
 echo "${yellow}Create a PIN to enter, which you will need after you reboot your computer, to REMOVE your MOK (Machine Owner Key):"
@@ -319,7 +328,7 @@ exit
 
 # If we are CREATING a MOK (Machine Owner Key), for secure boot module signing
 # /usr/share/doc/akmods/README.secureboot
-elif [ "$1" == "enroll_secureboot_mok" ]; then
+elif [ "$IS_ARM" == "" ] && [ "$1" == "enroll_secureboot_mok" ]; then
 
     
      # Check to see if MOK keys have already been setup
@@ -381,7 +390,7 @@ echo " "
 exit
 
 # Sign secure boot modules
-elif [ "$1" == "sign_secureboot_modules" ]; then
+elif [ "$IS_ARM" == "" ] && [ "$1" == "sign_secureboot_modules" ]; then
 
 sudo akmods --force --rebuild
 
@@ -421,8 +430,16 @@ echo " "
         
 exit
 
+elif [ "$IS_ARM" != "" ]; then
+
+echo " "
+echo "${red}SECURE BOOT MODULE SETUP ON ARM DEVICES IS NOT CURRENTLY SUPPORTED BY THIS SCRIPT, EXITING..."
+echo "${reset} "
+
+exit
+
 fi
-# END CLI params logic
+# END secure boot modules setup
 
 
 ######################################
@@ -430,7 +447,7 @@ fi
 
 # Check to see if MOK secure boot module signing KEYS have already been setup
 # /usr/share/doc/akmods/README.secureboot
-if sudo [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
+if [ "$IS_ARM" == "" ] && sudo [ ! -f "/etc/pki/akmods/certs/public_key.der" ]; then
 
 echo " "
 echo "${red}MOK (Machine Owner Key) secure boot module signing has NOT been setup yet, RERUN this script with the 'enroll_secureboot_mok' parameter:"
@@ -441,25 +458,6 @@ echo " "
 
 # EXIT
 exit
-
-fi
-
-
-######################################
-
-
-# If we are enabling cockpit, for remote admin UI ability
-if [ "$INSTALL_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
-
-sudo dnf install -y cockpit
-
-sleep 3
-
-sudo systemctl enable --now cockpit.socket
-
-sudo firewall-cmd --add-service=cockpit
-
-sudo firewall-cmd --add-service=cockpit --permanent
 
 fi
 
@@ -525,14 +523,21 @@ sleep 3
 ######################################
 
 
-# Install cron / fire it up (will persist between reboots)
-sudo dnf install -y cronie
+# If we are enabling cockpit, for remote admin UI ability
+if [ "$INSTALL_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
+
+sudo dnf install -y cockpit
 
 sleep 3
 
-sudo systemctl start crond.service
+sudo systemctl enable --now cockpit.socket
 
-sleep 3
+sudo firewall-cmd --add-service=cockpit
+
+sudo firewall-cmd --add-service=cockpit --permanent
+
+fi
+
 
 # Install uboot tools (for making ARM disk images bootable)
 sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk
@@ -577,25 +582,76 @@ sudo dnf install -y uboot-images-copr
 # If we are doing a graphical interface setup (NOT headless / terminal-only)
 if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
 
-# GROUP INSTALLS for games / media support / etc
-sudo dnf group install -y --skip-broken --skip-unavailable audio 3d-printing editors games sound-and-video vlc
-
 # Install generic graphics card libraries, and other interface-related libraries
 sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
 
-# Install cinnamon desktop
-sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
 
-# Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
-# (whole system got borked HARD running it daily for a couple weeks w/ NVIDIA 3070,
-# FOR FIRST HEAVY DAILY USAGE EVER, AND USING THEIR SYSTEM UPDATER..IDK
-# [ALSO HAD A POWERED USB HUB GETTING PROBED / HINDERING SYSTEM STARTUP...YIKES])
-#sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
+     # GROUP INSTALLS for games / media support / etc
+     if [ "$INTERFACE_GROUP_INSTALLS" != "" ]; then
+     sudo dnf group install -y --skip-broken --skip-unavailable $INTERFACE_GROUP_INSTALLS
+     fi
 
-sleep 3
+     
+     # DESKTOP INTERFACING / VIRTUAL MACHINE SUPPORT...
+     
+     # FOR NON-ARM DEVICES
+     if [ "$IS_ARM" == "" ]; then
+     
+     # Install cinnamon desktop (NO KNOWN ISSUES)
+     sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
+     
+     # Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
+     # (whole system got borked HARD running it daily for a couple weeks w/ NVIDIA 3070,
+     # FOR FIRST HEAVY DAILY USAGE EVER, AND USING THEIR SYSTEM UPDATER..IDK
+     # [ALSO HAD A POWERED USB HUB GETTING PROBED / HINDERING SYSTEM STARTUP...YIKES])
+     #sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
+     
+     # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
+     # AND evolution email / calendar
+     sudo dnf config-manager --enable google-chrome
+     sudo dnf install -y --skip-broken --skip-unavailable google-chrome-stable evolution
+     
+     # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
+     sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
+     
+     NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
+     
+         
+         # If running a geforce graphics card, install the drivers / system monitor
+         if [ "$NVIDIA_GEFORCE" != "" ]; then
+     
+         #https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
+         # (IF YOU BORK UP A NVIDIA UNINSTALL)
+         #sudo dnf reinstall -y linux-firmware
+     
+         sleep 3
+     
+         sudo dnf install -y --skip-broken --skip-unavailable akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
+     
+         sleep 3
+         
+         # NVIDIA System monitor
+         sudo flatpak install -y flathub io.github.congard.qnvsm     
+     
+         # https://forums.developer.nvidia.com/t/major-kde-plasma-desktop-frameskip-lag-issues-on-driver-555/293606
+         # https://download.nvidia.com/XFree86/Linux-x86_64/510.60.02/README/gsp.html
+         # IF YOU USE KDE?! IDK
+         #sudo grubby --update-kernel=ALL --args=nvidia.NVreg_EnableGpuFirmware=0
+     
+         fi
+    
+    
+     # FOR ARM DEVICES
+     elif [ "$IS_ARM" != "" ]; then
+     
+     # Install LXDE (NO KNOWN ISSUES)
+     sudo dnf group install -y lxde-desktop
+     
+     # Install chromium, AND evolution email / calendar
+     sudo dnf install -y --skip-broken --skip-unavailable chromium evolution
+     
+     fi
 
-# IF YOU WANT IT, Install LXDE (NO KNOWN ISSUES)
-#sudo dnf group install -y lxde-desktop
 
 # Install preferred file archiving tools
 sudo dnf install -y --skip-broken --skip-unavailable p7zip p7zip-plugins rar unrar engrampa
@@ -609,66 +665,18 @@ sudo dnf install -y easyeffects
 # Install 'passwords and keys' and kleopatra (GPG import / export)
 sudo dnf install -y --skip-broken --skip-unavailable seahorse kleopatra
 
-# Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
-# AND evolution email / calendar
-sudo dnf config-manager --enable google-chrome
-sudo dnf install -y google-chrome-stable evolution
+# Install bluefish, filezilla, meld, and library needed for FileZilla Pro
+sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld libxcrypt-compat
 
-# Install bluefish, meld, and library needed for FileZilla Pro
-sudo dnf install -y --skip-broken --skip-unavailable bluefish meld libxcrypt-compat
-
-# Add official linux github desktop repo, and install it
+# Add official LINUX Github Desktop repo, and install it
 sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
 
 sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://rpm.packages.shiftkey.dev/rpm/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://rpm.packages.shiftkey.dev/gpg.key" > /etc/yum.repos.d/shiftkey-packages.repo'
 
 sudo dnf install -y github-desktop
 
-# Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
-sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
-
 # Install darkplaces-quake, steam, AND lutris
 sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam lutris
-
-mkdir -p $HOME/Downloads
-
-sleep 2
-
-# Install from TRUSTED 3rd party download locations
-
-# Balena Etcher
-wget --directory-prefix=${HOME}/Downloads https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
-
-sleep 2
-
-sudo dnf install -y $HOME/Downloads/balena-etcher-1.19.25-1.x86_64.rpm
-
-NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
-
-    
-    # If running a geforce graphics card, install the drivers / system monitor
-    if [ "$NVIDIA_GEFORCE" != "" ]; then
-
-    #https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
-    # (IF YOU BORK UP A NVIDIA UNINSTALL)
-    #sudo dnf reinstall -y linux-firmware
-
-    sleep 3
-
-    sudo dnf install -y --skip-broken --skip-unavailable akmod-nvidia xorg-x11-drv-nvidia xorg-x11-drv-nvidia-cuda xorg-x11-drv-nvidia-libs xorg-x11-drv-nvidia-libs.i686
-
-    sleep 3
-    
-    # NVIDIA System monitor
-    sudo flatpak install -y flathub io.github.congard.qnvsm     
-
-    # https://forums.developer.nvidia.com/t/major-kde-plasma-desktop-frameskip-lag-issues-on-driver-555/293606
-    # https://download.nvidia.com/XFree86/Linux-x86_64/510.60.02/README/gsp.html
-    # IF YOU USE KDE?! IDK
-    #sudo grubby --update-kernel=ALL --args=nvidia.NVreg_EnableGpuFirmware=0
-
-    fi
-
 
 # Install flatpaks, AFTER video drivers (so any proper video dependencies are installed)
 
@@ -690,11 +698,28 @@ sudo flatpak install -y flathub org.telegram.desktop
 # Install Zoom (video chat client)
 sudo flatpak install -y flathub us.zoom.Zoom
 
+# Install from TRUSTED 3rd party download locations
+
+mkdir -p $HOME/Downloads
+
+sleep 2
+
+# Balena Etcher
+wget --directory-prefix=${HOME}/Downloads https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
+
+sleep 2
+
+sudo dnf install -y $HOME/Downloads/balena-etcher-1.19.25-1.x86_64.rpm
+
 fi
 
+
 ##############################################################################
 ##############################################################################
 
+
+# If NOT ARM, RUN SOME BOOT-RELATED LOGIC / NOTICES
+if [ "$IS_ARM" == "" ]; then
 
 # Make grub boot menu ALWAYS SHOW (even on NON-dual-boot setups)
 sudo grub2-editenv - unset menu_auto_hide
@@ -712,20 +737,15 @@ sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub 
 OS_PROBER_CHECK=$(sudo sed -n '/GRUB_DISABLE_OS_PROBER/p' /etc/default/grub)
 
 
-if [ "$OS_PROBER_CHECK" == "" ]; then
-sudo bash -c 'echo "GRUB_DISABLE_OS_PROBER=true" >> /etc/default/grub'
-else
-sudo sed -i 's/GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/g' /etc/default/grub > /dev/null 2>&1
-fi
+    if [ "$OS_PROBER_CHECK" == "" ]; then
+    sudo bash -c 'echo "GRUB_DISABLE_OS_PROBER=true" >> /etc/default/grub'
+    else
+    sudo sed -i 's/GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/g' /etc/default/grub > /dev/null 2>&1
+    fi
 
 
 # Update grub bootloader
 sudo grub2-mkconfig -o /etc/grub2.cfg
-
-# FULLY lock down all ports with the firewall (already installed / activated by default in fedora),
-# by changing the default zone to the included SERVER default setup
-# USE WITH CAUTION, THIS EVEN LOCKS DOWN RELATED INCOMING (INITIATED BY CLIENT REQUEST LOCALLY...BROWSER, INTERNET RADIO, ETC)!!!!!
-#sudo firewall-cmd --set-default-zone=FedoraServer
 
 sleep 3
 
@@ -733,30 +753,50 @@ sleep 3
 sudo akmods --force --rebuild
 
 
-if [ ! -f "${HOME}/.fedora_setup_1st_run.dat" ]; then
+    if [ ! -f "${HOME}/.fedora_setup_1st_run.dat" ]; then
 
-    # If running a geforce graphics card
-    if [ "$NVIDIA_GEFORCE" != "" ]; then
+
+        # If running a geforce graphics card
+        if [ "$NVIDIA_GEFORCE" != "" ]; then
+    
+        echo " "
+        echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
+
+        echo " "
+        echo "ADDITIONALLY, ALWAYS WAIT 10-15 MINUTES AFTER NVIDIA DRIVERS HAVE BEEN INSTALLED, BEFORE REBOOT / SHUTDOWN, AS SOMETIMES THE BOOT MODULES ARE STILL BEING BUILT SILENTLY IN THE BACKGROUND (NOT SURE WHY THIS UX IS SO HORRIBLE, BUT IT IS!)"
+
+        fi
+
     
     echo " "
-    echo "${red}ALWAYS USE FEDORA'S BUNDLED GEFORCE DRIVERS, AS THE MANUFACTURER-SUPPLIED DRIVERS ARE DISTRO-AGNOSTIC (NOT TAILORED SPECIFICALLY TO FEDORA), AND CAN CAUSE ISSUES!"
+    echo "MORE INFO IS HERE, RELATED TO RUNNING BOOT MODULES IN SECURE BOOT MODE:"
+    echo "${cyan}https://fedoraproject.org/wiki/Changes/NvidiaInstallationWithSecureboot"
+    echo "/usr/share/doc/akmods/README.secureboot"
+    echo "${reset} "
 
-    echo " "
-    echo "ADDITIONALLY, ALWAYS WAIT 10-15 MINUTES AFTER NVIDIA DRIVERS HAVE BEEN INSTALLED, BEFORE REBOOT / SHUTDOWN, AS SOMETIMES THE BOOT MODULES ARE STILL BEING BUILT SILENTLY IN THE BACKGROUND (NOT SURE WHY THIS UX IS SO HORRIBLE, BUT IT IS!)"
+    echo -e "ran" > ${HOME}/.fedora_setup_1st_run.dat
 
     fi
     
+    
+elif [ "$IS_ARM" != "" ]; then
+
 echo " "
-echo "MORE INFO IS HERE, RELATED TO RUNNING BOOT MODULES IN SECURE BOOT MODE:"
-echo "${cyan}https://fedoraproject.org/wiki/Changes/NvidiaInstallationWithSecureboot"
-echo "/usr/share/doc/akmods/README.secureboot"
+echo "${red}BOOT MODIFICATION RELATED TWEAKS ARE CURRENTLY NOT SUPPORTED ON ARM DEVICES, SKIPPING THAT PART OF THIS SETUP SCRIPT..."
 echo "${reset} "
-
-echo -e "ran" > ${HOME}/.fedora_setup_1st_run.dat
-
+        
 fi
 
 
+# FULLY lock down all ports with the firewall (already installed / activated by default in fedora),
+# by changing the default zone to the included SERVER default setup
+# USE WITH CAUTION, THIS EVEN LOCKS DOWN RELATED INCOMING (INITIATED BY CLIENT REQUEST LOCALLY...BROWSER, INTERNET RADIO, ETC)!!!!!
+#sudo firewall-cmd --set-default-zone=FedoraServer
+
 echo " "
-echo "Exiting Fedora setup..."
+echo "Fedora setup has fully completed, exiting..."
 echo " "
+
+
+
+
