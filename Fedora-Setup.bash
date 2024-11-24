@@ -54,6 +54,12 @@ UBOOT_DEV_BUILDS="fedora-41-aarch64" # Leave BLANK "", to use host's architectur
 # Are we running on an ARM-based CPU?
 IS_ARM=$(uname -r | grep "aarch64")
 
+# Are we running a NVIDIA GEFORCE GPU?     
+NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
+
+# Are we auto-selecting the NEWEST kernel, to boot by default in grub?
+KERNEL_BOOTED_UPDATES=$(sudo sed -n '/UPDATEDEFAULT=yes/p' /etc/sysconfig/kernel)
+
 ISSUES_URL="https://github.com/taoteh1221/Fedora_Setup/issues"
 
 
@@ -155,6 +161,58 @@ echo "${reset} "
     fi
 
 echo " "
+
+
+######################################
+
+
+# Offer to freeze auto-selecting new kernels to boot, ON ARM DEVICES
+if [ "$IS_ARM" != "" ] && [ "$KERNEL_BOOTED_UPDATES" != "" ]; then
+
+echo "${red}Your ARM-based device is CURRENTLY setup to UPDATE the grub bootloader to boot from THE LATEST KERNEL. THIS MAY CAUSE SOME ARM-BASED DEVICES TO NOT BOOT (without MANUALLY selecting a different kernel at boot time).${reset}"
+
+echo "${yellow} "
+read -n1 -s -r -p $"PRESS F to fix this (disable grub auto-selecting NEW kernels to boot), OR any other key to skip fixing..." key
+echo "${reset} "
+
+    if [ "$key" = 'f' ] || [ "$key" = 'F' ]; then
+
+    echo " "
+    echo "${cyan}Disabling grub auto-selecting NEW kernels to boot...${reset}"
+    echo " "
+    
+    sudo sed -i 's/UPDATEDEFAULT=.*/UPDATEDEFAULT=no/g' /etc/sysconfig/kernel > /dev/null 2>&1
+
+    echo "${red} "
+    read -n1 -s -r -p $"Press ANY KEY to REBOOT (to assure this update takes effect)..." key
+    echo "${reset} "
+             
+             
+            if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+                 
+            echo " "
+            echo "${green}Rebooting...${reset}"
+            echo " "
+                 
+            sudo shutdown -r now
+                 
+            exit
+                 
+            fi
+             
+             
+    echo " "
+     
+    else
+
+    echo " "
+    echo "${green}Skipping...${reset}"
+    echo " "
+    
+    fi
+
+
+fi
 
 
 ######################################
@@ -616,8 +674,6 @@ sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-openg
      
      # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
      sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
-     
-     NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
      
          
          # If running a geforce graphics card, install the drivers / system monitor
