@@ -603,14 +603,13 @@ fi
 # Install uboot tools (for making ARM disk images bootable)
 sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk
 
-# IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc),
-# Fedora USB disk image creator, AND enable 'updates-testing' repo
+# IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc), AND enable 'updates-testing' repo
 # https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
 # All board ids (filenames) in /usr/share/arm-image-installer/boards.d/ are the available
 # (fully supported) "target" parameter values for disk writing uboot automatically to same storage as the rootfs image
 # Headless setup w/ wifi:
 # https://www.redhat.com/en/blog/fedora-iot-raspberry-pi
-sudo dnf install --enablerepo=updates-testing -y arm-image-installer liveusb-creator
+sudo dnf install --enablerepo=updates-testing -y arm-image-installer
 
 # Add repo to have various FEDORA-COMPATIBLE uboot images
 # (LAST PARAMETER IS OPTIONAL [OR REQUIRED, IF INSTALLED ON A DIFFERENT DEVICE WITHOUT A MATCHING ARCHITECTURE])
@@ -715,8 +714,8 @@ sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-openg
 # Install preferred file archiving tools
 sudo dnf install -y --skip-broken --skip-unavailable p7zip p7zip-plugins rar unrar engrampa
 
-# Install gparted, for partition editing
-sudo dnf install -y gparted
+# Install gparted, for partition editing, and Fedora USB disk image creator
+sudo dnf install -y gparted liveusb-creator
 
 # Install easyeffects, for sound volume leveling (compression) of TV / Movies
 sudo dnf install -y easyeffects
@@ -724,8 +723,8 @@ sudo dnf install -y easyeffects
 # Install 'passwords and keys' and kleopatra (GPG import / export)
 sudo dnf install -y --skip-broken --skip-unavailable seahorse kleopatra
 
-# Install bluefish, filezilla, meld, and library needed for FileZilla Pro
-sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld libxcrypt-compat
+# Install bluefish, filezilla, meld, gimp, and library needed for FileZilla Pro
+sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld gimp libxcrypt-compat
 
 # Add official LINUX Github Desktop repo, and install it
 sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
