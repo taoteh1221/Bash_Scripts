@@ -855,6 +855,6 @@ echo " "
 echo "Fedora setup has fully completed, exiting..."
 echo " "
 
-
+exit
 
 
