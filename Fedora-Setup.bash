@@ -284,8 +284,28 @@ ALREADY_MOUNTED=$(findmnt | grep "${2}")
 
     sleep 2
     
+    # Flush disk cache
+    sync
+    
+    sleep 5
+    
+    PART_COUNT=$(sudo partx -g ${2} | wc -l)
+    
     echo " "
-    echo "${cyan}XZ disk image finished writing to device '${2}'."
+    echo "${cyan}XZ disk image finished writing to device '${2}', EXPANDING partition ${2}${PART_COUNT} (to use ENTIRE physical storage space), please wait..."
+    echo "${reset} "
+    
+    # https://unix.stackexchange.com/a/761845/390828
+    sudo parted ${2} print free
+    
+    sudo parted ${2} resizepart ${PART_COUNT} 100%
+
+    sudo e2fsck -f ${2}${PART_COUNT}
+
+    sudo resize2fs ${2}${PART_COUNT}
+    
+    echo " "
+    echo "${cyan}EXPANDING of partition ${2}${PART_COUNT} has completed."
     echo "${reset} "
 
     elif [ ! -f "$2" ]; then
@@ -634,6 +654,9 @@ sudo dnf install -y uboot-images-copr
 # Rock5b devices WILL NOT SUPPORT HDMI DISPLAY OUTPUT UNTIL LINUX KERNEL v6.13, SO ONBOARD SPI FLASH CAN ONLY BE DONE FLYING BLIND (GOOD LUCK, I GAVE UP)
 # MORE RELEVANT ROCK5B SETUP NOTES ARE HERE:
 # https://yrzr.github.io/notes-build-uboot-for-rock5b/#3-collabora-u-boot-mainline
+####
+# Raspi Hat setup:
+https://fedoraproject.org/w/index.php?title=Architectures/ARM/Raspberry_Pi/HATs
 
 
 ##############################################################################
