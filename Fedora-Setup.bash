@@ -298,11 +298,19 @@ ALREADY_MOUNTED=$(findmnt | grep "${2}")
     # https://unix.stackexchange.com/a/761845/390828
     sudo parted ${2} print free
     
+    sleep 5
+    
     sudo parted ${2} resizepart ${PART_COUNT} 100%
+    
+    sleep 5
 
     sudo e2fsck -f ${2}${PART_COUNT}
+    
+    sleep 5
 
     sudo resize2fs ${2}${PART_COUNT}
+    
+    sleep 5
     
     echo " "
     echo "${cyan}EXPANDING of partition ${2}${PART_COUNT} has completed."
