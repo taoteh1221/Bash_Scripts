@@ -1,49 +1,91 @@
 #!/bin/bash
 
-# Copyright 2024 GPLv3, by Mike Kilday: Mike@DragonFrugal.com (leave this copyright / attribution intact in ALL forks / copies!)
+# Copyright 2024-2025 GPLv3, by Mike Kilday: Mike@DragonFrugal.com (leave this copyright / attribution intact in ALL forks / copies!)
 
 ####
-# USAGE:
+
+# USAGE DOCUMENTATION:
+
 ####
+
 # DOWNLOAD / RUN IT, WITH ONE COMMAND...
+
 # wget --no-cache -O Fedora-Setup.bash https://tinyurl.com/install-fedora-setup;chmod +x Fedora-Setup.bash;./Fedora-Setup.bash
+
 ####
+
 # "chmod +x Fedora-Setup.bash" will make this script runnable / executable
+
 ####
+
 # "./Fedora-Setup.bash" runs this script in NORMAL setup mode
+
 ####
+
+# "./Fedora-Setup.bash secure_minimal" runs this script in SECURE / MINIMAL setup mode
+
+# (only installs BASIC essential packages, AND various crypto hardware wallet apps [to ~/Apps/ directory])
+# for maintaining a CLEAN / SECURE MACHINE (YOU **NEVER** DO ANY REGULAR WEB SURFING / DOWNLOADING ON!! [WINK])
+# (**HIGHLY CONSIDER** ENCRYPTING THE ROOT OR HOME PARTITION / DIRECTORIES ON THIS TYPE OF SETUP AS WELL!!)
+
+# Encrypting Home Directory on Fedora (AFTER system installation):
+# https://taoofmac.com/space/notes/2023/08/28/1900
+
+# Creating Encrypted Block Devices in Anaconda (system installer interface):
+# https://docs.fedoraproject.org/en-US/quick-docs/encrypting-drives-using-LUKS/#_creating_encrypted_block_devices_in_anaconda
+
+####
+
 # "./Fedora-Setup.bash enroll_secureboot_mok" runs this script in ENROLL MOK (Machine Owner Key) setup mode,
+
 # for boot module signing, on secure boot enabled systems (ADDS boot module signing support)
+
 ####
+
 # "./Fedora-Setup.bash reset_secureboot_mok" runs this script in RESET MOK (Machine Owner Key) setup mode,
+
 # for RESETTING boot module signing, on secure boot enabled systems
 # (RESETS / REMOVES boot module signing support [HELPS IF YOU HAVE MOK ISSUES, OR ARE REINSTALLING THE OS...THEN YOU CAN RE-ENROLL AFTERWARDS])
+
 ####
+
 # "./Fedora-Setup.bash sign_secureboot_modules" runs this script in SIGN MODULES (for secure boot) setup mode,
+
 # for boot module loading, on secure boot enabled systems (ENABLES boot module loading [in secure boot mode])
 # YOU MUST WAIT, AND RUN THIS MODULE-SIGNING MODE AFTER INSTALLING DRIVERS, AND AFTER ENROLLING THE MOK KEY (BEFORE DRIVER INSTALLATION)!
 # THIS IS ALSO AUTOMATICALLY RUN AT THE VERY END OF THIS SCRIPT, SO YOU WON'T NEED IT UNLESS YOU HAVE INITIAL SETUP ISSUES (LOL)
+
 ####
+
 # "./Fedora-Setup.bash arm_image_to_device  /dev/DEVICE_NAME  https://website.address/your-disk-image.img.xz"
+
 # Above command runs this script in ARM (xz) disk image to storage device setup mode,
 # for downloading and installing an ARM disk image to a storage device (to boot an OS from that storage device [M2 drive, etc])
+
 ####
 
 
 # Config
 
-PREFERRED_HOSTNAME="libre-fedora"
+# Hostname (set to "" to skip updating)
+PREFERRED_HOSTNAME="my-hostname"
 
+# Seconds to wait in grub, before booting up
 SECONDS_TO_SHOW_BOOT_MENU=10
 
+# Install Cockpit remote admin?
+# (SETTING TO "no" WILL *NOT* UN-INSTALL ANY EXISTING INSTALLATION)
 INSTALL_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
+# Headless setup, or NOT
+# (headless setup SKIPS installing interface-related apps / libraries)
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
 
-# GROUP installs to include, during NON-HEADLESS / INTERFACE setups
+# GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
 INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc"
 
-UBOOT_DEV_BUILDS="fedora-41-aarch64" # Leave BLANK "", to use host's architecture
+# Leave BLANK "", to use host's architecture
+UBOOT_DEV_BUILDS="fedora-41-aarch64"
 
 # END Config
 
@@ -166,6 +208,58 @@ echo " "
 ######################################
 
 
+# Updates to grub bootloader
+# (as a re-usable bash function)
+grub_mods() {
+
+
+     # Currently, we don't support updating grub on ARM
+     # (still working out if it's possible [easily enough], while remaining STABLE)
+     if [ "$IS_ARM" == "" ]; then
+     
+     # Make grub boot menu ALWAYS SHOW (even on NON-dual-boot setups)
+     sudo grub2-editenv - unset menu_auto_hide
+     
+     # Have grub wait 10 seconds before auto-booting
+     sudo sed -i "s/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=${SECONDS_TO_SHOW_BOOT_MENU}/g" /etc/default/grub > /dev/null 2>&1
+     
+     # Have grub show verbose startup / shutdown screens
+     # (NOT SURE FEDORA DEBUGS VERBOSE STARTUP MODE UX TOO WELL, BUT IT CLEARLY SHOWS WHEN ISSUES ARE HAPPENING)
+     sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
+     
+     # Remove WINDOWS BOOT MANAGER from grub
+     # (MODERN SECURE BOOT ENABLED setups now usually require booting windows from the UEFI boot menu hotkey at startup,
+     # IF YOU HAVE A BITLOCKER-ENCRYPTED [Windows 11 Pro] windows operating system, otherwise you force-enter "recovery mode")
+     OS_PROBER_CHECK=$(sudo sed -n '/GRUB_DISABLE_OS_PROBER/p' /etc/default/grub)
+     
+     
+         if [ "$OS_PROBER_CHECK" == "" ]; then
+         sudo bash -c 'echo "GRUB_DISABLE_OS_PROBER=true" >> /etc/default/grub'
+         else
+         sudo sed -i 's/GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/g' /etc/default/grub > /dev/null 2>&1
+         fi
+     
+     
+     # Update grub bootloader
+     sudo grub2-mkconfig -o /etc/grub2.cfg
+     
+     sleep 3
+     
+     elif [ "$IS_ARM" != "" ]; then
+     
+     echo " "
+     echo "${red}GRUB BOOT MODIFICATION RELATED TWEAKS ARE NOT YET (STABLY) SUPPORTED ON ARM DEVICES, SKIPPING..."
+     echo "${reset} "
+     
+     fi
+
+
+}
+
+
+######################################
+
+
 # Offer to freeze auto-selecting new kernels to boot, ON ARM DEVICES
 if [ "$IS_ARM" != "" ] && [ "$KERNEL_BOOTED_UPDATES" != "" ]; then
 
@@ -218,6 +312,39 @@ fi
 ######################################
 
 
+# Set hostname
+if [ "$PREFERRED_HOSTNAME" != "" ]; then
+sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
+fi     
+
+
+# Secure user home directory, from other accounts snooping it
+sudo chmod 750 /home/$USER
+
+sleep 2
+
+# Make sure our downloads directory exists, for TRUSTED 3rd party installs from github, etc
+mkdir -p $HOME/Downloads
+
+sleep 2
+
+# Make sure our apps directory exists, for custom app installs to our home directory
+mkdir -p $HOME/Apps
+
+sleep 2
+
+# Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
+# As user
+timedatectl set-local-rtc 0
+# As admin too
+sudo timedatectl set-local-rtc 0
+
+# Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
+# https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
+sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
+
+sleep 3
+
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
 
@@ -229,8 +356,15 @@ sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` ker
 # GROUP install dev tools / hardware support
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
-# Install samba / encryption tools, openssl, curl, flatpak, and nano
-sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl flatpak
+# Install samba / encryption / archiving tools, openssl, curl, flatpak, and nano
+sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl flatpak engrampa p7zip p7zip-plugins
+
+
+# Install generic graphics card libraries, and other interface-related libraries
+if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
+sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
+fi
+
 
 sleep 3
 
@@ -242,6 +376,93 @@ sleep 3
 sudo systemctl start crond.service
 
 sleep 3
+
+# Set default (user) editors to nano
+DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
+DEFAULT_VISUAL_CHECK=$(sed -n '/export VISUAL/p' ~/.bash_profile)
+
+
+if [ "$DEFAULT_EDITOR_CHECK" == "" ]; then
+bash -c 'echo "export EDITOR=nano" >> ~/.bash_profile'
+else
+sed -i 's/export EDITOR=.*/export EDITOR=nano/g' ~/.bash_profile > /dev/null 2>&1
+fi
+
+
+if [ "$DEFAULT_VISUAL_CHECK" == "" ]; then
+bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
+else
+sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
+fi
+
+
+######################################
+
+
+# If we are doing a secure / minimal setup, install various crypto hardware wallet apps,
+# tweak grub settings, and EXIT here
+if [ "$1" == "secure_minimal" ]; then
+
+# Install crypto wallet apps, from TRUSTED 3rd party download locations...
+
+echo " "
+echo "${cyan}Installing various crypto hardware wallet apps to ${HOME}/Apps, please wait..."
+echo " "
+
+# Ledger crypto hardware wallet linux permissions
+wget -q -O - https://raw.githubusercontent.com/LedgerHQ/udev-rules/master/add_udev_rules.sh | sudo bash
+
+# Ledger Live app
+mkdir -p $HOME/Apps/Ledger-Live
+
+sleep 2
+
+wget --directory-prefix=${HOME}/Apps/Ledger-Live --no-cache -O ledger-live.AppImage https://download.live.ledger.com/latest/linux
+
+sleep 2
+
+chmod +x ${HOME}/Apps/Ledger-Live/ledger-live.AppImage
+
+# Trezor crypto hardware wallet linux permissions
+wget --directory-prefix=${HOME}/Downloads https://data.trezor.io/udev/trezor-udev-2-1.noarch.rpm
+
+sleep 2
+
+sudo dnf install -y $HOME/Downloads/trezor-udev-2-1.noarch.rpm
+
+# Trezor app
+mkdir -p $HOME/Apps/Trezor
+
+sleep 2
+
+wget --directory-prefix=${HOME}/Apps/Trezor --no-cache -O trezor-app.AppImage https://github.com/trezor/trezor-suite/releases/download/v24.11.3/Trezor-Suite-24.11.3-linux-x86_64.AppImage
+
+sleep 2
+
+chmod +x ${HOME}/Apps/Trezor/trezor-app.AppImage
+
+# Grub tweaks
+grub_mods()
+
+echo " "
+
+echo "${red}**HIGHLY CONSIDER** ENCRYPTING THE ROOT OR HOME PARTITION / DIRECTORIES ON THIS TYPE OF SETUP AS WELL!!"
+echo "${reset} "
+
+echo "${yellow}Encrypting Home Directory on Fedora (AFTER system installation):"
+echo "${cyan}https://taoofmac.com/space/notes/2023/08/28/1900"
+echo "${reset} "
+
+echo "${yellow}Creating Encrypted Block Devices in Anaconda (system installer interface):"
+echo "${cyan}https://docs.fedoraproject.org/en-US/quick-docs/encrypting-drives-using-LUKS/#_creating_encrypted_block_devices_in_anaconda"
+echo "${reset} "
+
+echo "${cyan}Secure / minimal setup mode has completed, exiting Fedora setup..."
+echo "${reset} "
+
+exit
+
+fi
 
 
 ######################################
@@ -554,46 +775,6 @@ fi
 ######################################
 
 
-# Set hostname
-sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
-
-# Secure user home directory, from other accounts snooping it
-sudo chmod 750 /home/$USER
-
-# Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
-# As user
-timedatectl set-local-rtc 0
-# As admin too
-sudo timedatectl set-local-rtc 0
-
-# Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
-# https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
-sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
-
-sleep 3
-
-# Set default (user) editors to nano
-DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
-DEFAULT_VISUAL_CHECK=$(sed -n '/export VISUAL/p' ~/.bash_profile)
-
-
-if [ "$DEFAULT_EDITOR_CHECK" == "" ]; then
-bash -c 'echo "export EDITOR=nano" >> ~/.bash_profile'
-else
-sed -i 's/export EDITOR=.*/export EDITOR=nano/g' ~/.bash_profile > /dev/null 2>&1
-fi
-
-
-if [ "$DEFAULT_VISUAL_CHECK" == "" ]; then
-bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
-else
-sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
-fi
-
-
-######################################
-
-
 # Enable FUSION repos
 sudo dnf install -y \
   https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
@@ -664,17 +845,15 @@ sudo dnf install -y uboot-images-copr
 # https://yrzr.github.io/notes-build-uboot-for-rock5b/#3-collabora-u-boot-mainline
 ####
 # Raspi Hat setup:
-https://fedoraproject.org/w/index.php?title=Architectures/ARM/Raspberry_Pi/HATs
+# https://fedoraproject.org/w/index.php?title=Architectures/ARM/Raspberry_Pi/HATs
 
 
 ##############################################################################
 ##############################################################################
+
 
 # If we are doing a graphical interface setup (NOT headless / terminal-only)
 if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
-
-# Install generic graphics card libraries, and other interface-related libraries
-sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
 
 
      # GROUP INSTALLS for games / media support / etc
@@ -688,7 +867,7 @@ sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-openg
      # FOR NON-ARM DEVICES
      if [ "$IS_ARM" == "" ]; then
      
-     # Install cinnamon desktop (NO KNOWN ISSUES)
+     # Install cinnamon desktop (NO KNOWN ISSUES ON X86 'WORKSTATION' VERSION OF FEDORA)
      sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
      
      # Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
@@ -733,8 +912,18 @@ sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-openg
      # FOR ARM DEVICES
      elif [ "$IS_ARM" != "" ]; then
      
-     # Install LXDE (NO KNOWN ISSUES)
-     sudo dnf group install -y lxde-desktop
+     # Install AND ENABLE LIGHTDM / LXDE (UNTESTED)
+     sudo dnf group install -y lightdm lxde-desktop
+     
+     sleep 5
+     
+     # DISABLE gdm at boot
+     sudo systemctl disable gdm.service
+     
+     # ENABLE lightdm at boot
+     # DEBUG: sudo lightdm –-test-mode --debug
+     # DEBUG: journalctl -b -u lightdm.service
+     sudo systemctl enable lightdm.service
      
      # Install chromium, AND evolution email / calendar
      sudo dnf install -y --skip-broken --skip-unavailable chromium evolution
@@ -742,8 +931,8 @@ sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-openg
      fi
 
 
-# Install preferred file archiving tools
-sudo dnf install -y --skip-broken --skip-unavailable p7zip p7zip-plugins rar unrar engrampa
+# Install RAR file archiving tools (from RPMFusion)
+sudo dnf install -y --skip-broken --skip-unavailable rar unrar
 
 # Install gparted, for partition editing, and Fedora USB disk image creator
 sudo dnf install -y gparted liveusb-creator
@@ -789,10 +978,6 @@ sudo flatpak install -y flathub us.zoom.Zoom
 
 # Install from TRUSTED 3rd party download locations
 
-mkdir -p $HOME/Downloads
-
-sleep 2
-
 # Balena Etcher
 wget --directory-prefix=${HOME}/Downloads https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
 
@@ -810,33 +995,8 @@ fi
 # If NOT ARM, RUN SOME BOOT-RELATED LOGIC / NOTICES
 if [ "$IS_ARM" == "" ]; then
 
-# Make grub boot menu ALWAYS SHOW (even on NON-dual-boot setups)
-sudo grub2-editenv - unset menu_auto_hide
-
-# Have grub wait 10 seconds before auto-booting
-sudo sed -i "s/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=${SECONDS_TO_SHOW_BOOT_MENU}/g" /etc/default/grub > /dev/null 2>&1
-
-# Have grub show verbose startup / shutdown screens
-# (NOT SURE FEDORA DEBUGS VERBOSE STARTUP MODE UX TOO WELL, BUT IT CLEARLY SHOWS WHEN ISSUES ARE HAPPENING)
-sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
-
-# Remove WINDOWS BOOT MANAGER from grub
-# (MODERN SECURE BOOT ENABLED setups now usually require booting windows from the UEFI boot menu hotkey at startup,
-# IF YOU HAVE A BITLOCKER-ENCRYPTED [Windows 11 Pro] windows operating system, otherwise you force-enter "recovery mode")
-OS_PROBER_CHECK=$(sudo sed -n '/GRUB_DISABLE_OS_PROBER/p' /etc/default/grub)
-
-
-    if [ "$OS_PROBER_CHECK" == "" ]; then
-    sudo bash -c 'echo "GRUB_DISABLE_OS_PROBER=true" >> /etc/default/grub'
-    else
-    sudo sed -i 's/GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=true/g' /etc/default/grub > /dev/null 2>&1
-    fi
-
-
-# Update grub bootloader
-sudo grub2-mkconfig -o /etc/grub2.cfg
-
-sleep 3
+# Grub tweaks
+grub_mods()
 
 # Rebuild any nvidia / virtualbox / etc boot modules, and sign them with the appropriate MOK
 sudo akmods --force --rebuild
@@ -868,12 +1028,6 @@ sudo akmods --force --rebuild
     fi
     
     
-elif [ "$IS_ARM" != "" ]; then
-
-echo " "
-echo "${red}BOOT MODIFICATION RELATED TWEAKS ARE CURRENTLY NOT SUPPORTED ON ARM DEVICES, SKIPPING THAT PART OF THIS SETUP SCRIPT..."
-echo "${reset} "
-        
 fi
 
 
