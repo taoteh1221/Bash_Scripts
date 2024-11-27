@@ -967,6 +967,16 @@ sudo dnf install -y github-desktop
 # Install darkplaces-quake, steam, AND lutris
 sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam lutris
 
+sleep 3
+
+mkdir -p $HOME/Apps/Quake-Darkplaces
+
+sleep 2
+
+ln -s /usr/bin/darkplaces-quake-sdl $HOME/Apps/Quake-Darkplaces/darkplaces-quake-sdl
+
+ln -s /usr/bin/darkplaces-quake-glx $HOME/Apps/Quake-Darkplaces/darkplaces-quake-glx
+
 # Install flatpaks, AFTER video drivers (so any proper video dependencies are installed)
 
 # Install spotify
