@@ -399,49 +399,60 @@ fi
 ######################################
 
 
-# If we are doing a secure / minimal setup, install various crypto hardware wallet apps,
-# tweak grub settings, and EXIT here
+# If we are doing a secure / minimal setup, install / tweak some stuff, and EXIT setup early
 if [ "$1" == "secure_minimal" ]; then
 
-# Install crypto wallet apps, from TRUSTED 3rd party download locations...
+     
+     # If NOT a headless setup, install web browsers / email, and various crypto hardware wallet apps
+     if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
+     
+     # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
+     # chromium, AND evolution email / calendar
+     sudo dnf config-manager --enable google-chrome
+     sudo dnf install -y --skip-broken --skip-unavailable google-chrome-stable chromium evolution
+          
+     # Install crypto wallet apps, from TRUSTED 3rd party download locations...
+     
+     echo " "
+     echo "${cyan}Installing various crypto hardware wallet apps to ${HOME}/Apps, please wait..."
+     echo " "
+     
+     # Ledger crypto hardware wallet linux permissions
+     wget -q -O - https://raw.githubusercontent.com/LedgerHQ/udev-rules/master/add_udev_rules.sh | sudo bash
+     
+     # Ledger Live app
+     mkdir -p $HOME/Apps/Ledger-Live
+     
+     sleep 2
+     
+     wget --directory-prefix=${HOME}/Apps/Ledger-Live --no-cache -O ledger-live.AppImage https://download.live.ledger.com/latest/linux
+     
+     sleep 2
+     
+     chmod +x ${HOME}/Apps/Ledger-Live/ledger-live.AppImage
+     
+     # Trezor crypto hardware wallet linux permissions
+     wget --directory-prefix=${HOME}/Downloads https://data.trezor.io/udev/trezor-udev-2-1.noarch.rpm
+     
+     sleep 2
+     
+     sudo dnf install -y $HOME/Downloads/trezor-udev-2-1.noarch.rpm
+     
+     # Trezor app
+     mkdir -p $HOME/Apps/Trezor
+     
+     sleep 2
+     
+     wget --directory-prefix=${HOME}/Apps/Trezor --no-cache -O trezor-app.AppImage https://github.com/trezor/trezor-suite/releases/download/v24.11.3/Trezor-Suite-24.11.3-linux-x86_64.AppImage
+     
+     sleep 2
+     
+     chmod +x ${HOME}/Apps/Trezor/trezor-app.AppImage
+     
+     fi
 
-echo " "
-echo "${cyan}Installing various crypto hardware wallet apps to ${HOME}/Apps, please wait..."
-echo " "
 
-# Ledger crypto hardware wallet linux permissions
-wget -q -O - https://raw.githubusercontent.com/LedgerHQ/udev-rules/master/add_udev_rules.sh | sudo bash
-
-# Ledger Live app
-mkdir -p $HOME/Apps/Ledger-Live
-
-sleep 2
-
-wget --directory-prefix=${HOME}/Apps/Ledger-Live --no-cache -O ledger-live.AppImage https://download.live.ledger.com/latest/linux
-
-sleep 2
-
-chmod +x ${HOME}/Apps/Ledger-Live/ledger-live.AppImage
-
-# Trezor crypto hardware wallet linux permissions
-wget --directory-prefix=${HOME}/Downloads https://data.trezor.io/udev/trezor-udev-2-1.noarch.rpm
-
-sleep 2
-
-sudo dnf install -y $HOME/Downloads/trezor-udev-2-1.noarch.rpm
-
-# Trezor app
-mkdir -p $HOME/Apps/Trezor
-
-sleep 2
-
-wget --directory-prefix=${HOME}/Apps/Trezor --no-cache -O trezor-app.AppImage https://github.com/trezor/trezor-suite/releases/download/v24.11.3/Trezor-Suite-24.11.3-linux-x86_64.AppImage
-
-sleep 2
-
-chmod +x ${HOME}/Apps/Trezor/trezor-app.AppImage
-
-# Grub tweaks
+# Grub mods
 grub_mods()
 
 echo " "
@@ -995,7 +1006,7 @@ fi
 # If NOT ARM, RUN SOME BOOT-RELATED LOGIC / NOTICES
 if [ "$IS_ARM" == "" ]; then
 
-# Grub tweaks
+# Grub mods
 grub_mods()
 
 # Rebuild any nvidia / virtualbox / etc boot modules, and sign them with the appropriate MOK
