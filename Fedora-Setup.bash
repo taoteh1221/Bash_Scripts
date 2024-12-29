@@ -356,8 +356,8 @@ sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` ker
 # GROUP install dev tools / hardware support
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
-# Install samba / encryption / archiving tools, openssl, curl, flatpak, and nano
-sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl flatpak engrampa p7zip p7zip-plugins
+# Install samba / encryption / archiving tools, openssl, curl, php, flatpak, and nano
+sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php flatpak engrampa p7zip p7zip-plugins
 
 
 # Install generic graphics card libraries, and other interface-related libraries
@@ -897,6 +897,7 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      
          
          # If running a geforce graphics card, install the drivers / system monitor
+         # https://rpmfusion.org/Howto/NVIDIA#Switching_between_nouveau.2Fnvidia
          if [ "$NVIDIA_GEFORCE" != "" ]; then
      
          #https://discussion.fedoraproject.org/t/nvidia-drivers-with-secure-boot-no-longer-working/84444
