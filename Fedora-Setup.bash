@@ -224,8 +224,11 @@ grub_mods() {
      sudo sed -i "s/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=${SECONDS_TO_SHOW_BOOT_MENU}/g" /etc/default/grub > /dev/null 2>&1
      
      # Have grub show verbose startup / shutdown screens
-     # (NOT SURE FEDORA DEBUGS VERBOSE STARTUP MODE UX TOO WELL, BUT IT CLEARLY SHOWS WHEN ISSUES ARE HAPPENING)
-     sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
+     # (NOT SURE FEDORA DEBUGS VERBOSE STARTUP MODE UX TOO WELL [lots of uneeded USB hub polling], BUT IT CLEARLY SHOWS WHEN ISSUES ARE HAPPENING)
+     # DISABLED USING SED, AS WE CAN ACCIDENTALLY REMOVE KERNEL PARAMS WE WANT TO KEEP (LIKE NVIDIA DRIVER / NOUVEAU BLACKLISTING)!
+     # sudo sed -i 's/GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=""/g' /etc/default/grub > /dev/null 2>&1
+     # Works in tests, as an alternate method (props to @computersavvy, thanks!):
+     sudo grubby --update-kernel=ALL --remove-args="rhgb quiet"
      
      # Remove WINDOWS BOOT MANAGER from grub
      # (MODERN SECURE BOOT ENABLED setups now usually require booting windows from the UEFI boot menu hotkey at startup,
