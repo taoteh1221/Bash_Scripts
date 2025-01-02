@@ -1794,7 +1794,7 @@ select opt in $OPTIONS; do
                 # If set player param WAS NOT correctly included (AND NOT BLANK), set it to defaults
                 if [[ $SET_PLAYER != "" ]] && [[ $SET_PLAYER != "mpl" ]] && [[ $SET_PLAYER != "vlc" ]] && [[ $SET_PLAYER != "mpv" ]]; then
                 SET_PLAYER=""
-                PLAYER_DESC=" (using player defaults [INVALID player value '${keystroke}' entered])"
+                PLAYER_DESC=" (using player defaults [INVALID player value entered])"
                 elif [[ $SET_PLAYER == "mpl" ]]; then
                 SET_PLAYER="mplayer"
                 PLAYER_DESC=" (setting player to: ${SET_PLAYER})"
