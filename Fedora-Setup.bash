@@ -353,6 +353,20 @@ sudo dnf upgrade -y
 
 sleep 3
 
+# Enable FUSION repos
+sudo dnf install -y \
+  https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
+
+sudo dnf install -y \
+  https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+sleep 3
+
+# Refresh cache, to include the new repos
+sudo dnf makecache
+
+sleep 3
+
 # Install building / system tools
 sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
 
@@ -360,7 +374,8 @@ sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` ker
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
 # Install samba / encryption / archiving tools, openssl, curl, php, flatpak, and nano
-sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php flatpak engrampa p7zip p7zip-plugins
+# https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
+sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php flatpak engrampa p7zip p7zip-plugins rar unrar
 
 
 # Install generic graphics card libraries, and other interface-related libraries
@@ -789,24 +804,6 @@ fi
 ######################################
 
 
-# Enable FUSION repos
-sudo dnf install -y \
-  https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
-
-sudo dnf install -y \
-  https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-
-sleep 3
-
-# Refresh cache, to include the new repos
-sudo dnf makecache
-
-sleep 3
-
-
-######################################
-
-
 # If we are enabling cockpit, for remote admin UI ability
 if [ "$INSTALL_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
 
@@ -945,9 +942,6 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      
      fi
 
-
-# Install RAR file archiving tools (from RPMFusion)
-sudo dnf install -y --skip-broken --skip-unavailable rar unrar
 
 # Install gparted, for partition editing, and Fedora USB disk image creator
 sudo dnf install -y gparted liveusb-creator
