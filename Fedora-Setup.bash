@@ -895,6 +895,12 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
      sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
      
+     sleep 5
+     
+     # Kernel 6.12 in F41 breaks virtualbox support, fixable with kernel boot params:
+     # https://www.reddit.com/r/linuxquestions/comments/1hh9k21/virtualbox_broken_after_kernel_612_fedora_41/
+     sudo grubby --update-kernel=DEFAULT --args="kvm.enable_virt_at_load=0"
+     
          
          # If running a geforce graphics card, install the drivers / system monitor
          # https://rpmfusion.org/Howto/NVIDIA#Switching_between_nouveau.2Fnvidia
