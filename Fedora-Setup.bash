@@ -36,6 +36,14 @@
 
 ####
 
+# "./Fedora-Setup.bash connect_wifi" runs this script in WIFI setup mode,
+
+# at the top of this file (in the config settings section), you MUST set:
+# WIFI_SSID_SETUP
+# WIFI_PASSWORD_SETUP
+
+####
+
 # "./Fedora-Setup.bash enroll_secureboot_mok" runs this script in ENROLL MOK (Machine Owner Key) setup mode,
 
 # for boot module signing, on secure boot enabled systems (ADDS boot module signing support)
@@ -67,15 +75,20 @@
 
 # Config
 
+# Wifi setup (ADD SSID / PASSWORD, OR LEAVE BLANK [IF YOU DO *NOT* WANT WIFI AUTOMATICALLY SETUP!])
+WIFI_SSID_SETUP=""
+WIFI_PASSWORD_SETUP=""
+
 # Hostname (set to "" to skip updating)
 PREFERRED_HOSTNAME="my-hostname"
 
 # Seconds to wait in grub, before booting up
 SECONDS_TO_SHOW_BOOT_MENU=10
 
-# Install Cockpit remote admin?
+# Setup Cockpit remote admin?
 # (SETTING TO "no" WILL *NOT* UN-INSTALL ANY EXISTING INSTALLATION)
-INSTALL_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
+# (Fedora SERVER edition ALREADY HAS COCKPIT INSTALLED)
+SETUP_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
 # Headless setup, or NOT
 # (headless setup SKIPS installing interface-related apps / libraries)
@@ -411,6 +424,39 @@ if [ "$DEFAULT_VISUAL_CHECK" == "" ]; then
 bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
 else
 sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
+fi
+
+
+######################################
+
+
+# If we are setting up a wifi connection
+if [ "$1" == "connect_wifi" ] && [ "$WIFI_SSID_SETUP" != "" ] && [ "$WIFI_PASSWORD_SETUP" != "" ]; then
+
+sudo nmcli device wifi connect "$WIFI_SSID_SETUP" password "$WIFI_PASSWORD_SETUP"
+
+echo " "
+echo "${cyan}wifi setup has completed, UNLESS YOU SEE ANY ERRORS ABOVE."
+echo "${reset} "
+
+exit
+
+elif [ "$WIFI_SSID_SETUP" == "" ] && [ "$1" == "connect_wifi" ]; then
+
+echo " "
+echo "${red}wifi SSID was NOT included."
+echo "${reset} "
+
+exit
+
+elif [ "$WIFI_PASSWORD_SETUP" == "" ] && [ "$1" == "connect_wifi" ]; then
+
+echo " "
+echo "${red}wifi PASSWORD was NOT included."
+echo "${reset} "
+
+exit
+
 fi
 
 
@@ -805,7 +851,7 @@ fi
 
 
 # If we are enabling cockpit, for remote admin UI ability
-if [ "$INSTALL_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
+if [ "$SETUP_COCKPIT_REMOTE_ADMIN" == "yes" ]; then
 
 sudo dnf install -y cockpit
 
