@@ -36,14 +36,6 @@
 
 ####
 
-# "./Fedora-Setup.bash connect_wifi" runs this script in WIFI setup mode,
-
-# at the top of this file (in the config settings section), you MUST set:
-# WIFI_SSID_SETUP
-# WIFI_PASSWORD_SETUP
-
-####
-
 # "./Fedora-Setup.bash enroll_secureboot_mok" runs this script in ENROLL MOK (Machine Owner Key) setup mode,
 
 # for boot module signing, on secure boot enabled systems (ADDS boot module signing support)
@@ -223,7 +215,7 @@ echo " "
 
 # Updates to grub bootloader
 # (as a re-usable bash function)
-grub_mods() {
+setup_grub_mods() {
 
 
      # Currently, we don't support updating grub on ARM
@@ -256,16 +248,18 @@ grub_mods() {
          fi
      
      
+     sleep 2
+     
      # Update grub bootloader
      sudo grub2-mkconfig -o /etc/grub2.cfg
      
-     sleep 3
+     sleep 2
      
      elif [ "$IS_ARM" != "" ]; then
      
-     echo " "
-     echo "${red}GRUB BOOT MODIFICATION RELATED TWEAKS ARE NOT YET (STABLY) SUPPORTED ON ARM DEVICES, SKIPPING..."
-     echo "${reset} "
+     echo " " > /dev/tty
+     echo "${red}GRUB BOOT MODIFICATION RELATED TWEAKS ARE NOT YET (STABLY) SUPPORTED ON ARM DEVICES, SKIPPING..." > /dev/tty
+     echo "${reset} " > /dev/tty
      
      fi
 
@@ -390,6 +384,13 @@ sudo dnf group install -y --skip-broken --skip-unavailable c-development contain
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
 sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php flatpak engrampa p7zip p7zip-plugins rar unrar
 
+sleep 3
+
+# Add flathub repo
+sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+sleep 3
+
 
 # Install generic graphics card libraries, and other interface-related libraries
 if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
@@ -431,7 +432,10 @@ fi
 
 
 # If we are setting up a wifi connection
-if [ "$1" == "connect_wifi" ] && [ "$WIFI_SSID_SETUP" != "" ] && [ "$WIFI_PASSWORD_SETUP" != "" ]; then
+
+WIFI_EXISTS=$(ip link show | grep -i "wlan0")
+
+if [ "$WIFI_EXISTS" != "" ] && [ "$WIFI_SSID_SETUP" != "" ] && [ "$WIFI_PASSWORD_SETUP" != "" ]; then
 
 sudo nmcli device wifi connect "$WIFI_SSID_SETUP" password "$WIFI_PASSWORD_SETUP"
 
@@ -439,23 +443,11 @@ echo " "
 echo "${cyan}wifi setup has completed, UNLESS YOU SEE ANY ERRORS ABOVE."
 echo "${reset} "
 
-exit
-
-elif [ "$WIFI_SSID_SETUP" == "" ] && [ "$1" == "connect_wifi" ]; then
+elif [ "$WIFI_EXISTS" == "" ]; then
 
 echo " "
-echo "${red}wifi SSID was NOT included."
+echo "${red}wifi capability was NOT found on your system, please make sure any needed firmware (for your wifi chip) has been installed."
 echo "${reset} "
-
-exit
-
-elif [ "$WIFI_PASSWORD_SETUP" == "" ] && [ "$1" == "connect_wifi" ]; then
-
-echo " "
-echo "${red}wifi PASSWORD was NOT included."
-echo "${reset} "
-
-exit
 
 fi
 
@@ -479,7 +471,7 @@ if [ "$1" == "secure_minimal" ]; then
      
      echo " "
      echo "${cyan}Installing various crypto hardware wallet apps to ${HOME}/Apps, please wait..."
-     echo " "
+     echo "${reset} "
      
      # Ledger crypto hardware wallet linux permissions
      wget -q -O - https://raw.githubusercontent.com/LedgerHQ/udev-rules/master/add_udev_rules.sh | sudo bash
@@ -489,35 +481,48 @@ if [ "$1" == "secure_minimal" ]; then
      
      sleep 2
      
-     wget --directory-prefix=${HOME}/Apps/Ledger-Live --no-cache -O ledger-live.AppImage https://download.live.ledger.com/latest/linux
+     cd $HOME/Apps/Ledger-Live
+     
+     # NO ARM SUPPORT
+     wget --no-cache -O ledger-live.AppImage https://download.live.ledger.com/latest/linux
      
      sleep 2
      
-     chmod +x ${HOME}/Apps/Ledger-Live/ledger-live.AppImage
+     chmod +x ledger-live.AppImage
      
      # Trezor crypto hardware wallet linux permissions
-     wget --directory-prefix=${HOME}/Downloads https://data.trezor.io/udev/trezor-udev-2-1.noarch.rpm
-     
-     sleep 2
-     
-     sudo dnf install -y $HOME/Downloads/trezor-udev-2-1.noarch.rpm
+     sudo curl https://data.trezor.io/udev/51-trezor.rules -o /etc/udev/rules.d/51-trezor.rules
      
      # Trezor app
      mkdir -p $HOME/Apps/Trezor
      
      sleep 2
      
-     wget --directory-prefix=${HOME}/Apps/Trezor --no-cache -O trezor-app.AppImage https://github.com/trezor/trezor-suite/releases/download/v24.11.3/Trezor-Suite-24.11.3-linux-x86_64.AppImage
+     cd $HOME/Apps/Trezor
+     
+     
+     if [ "$IS_ARM" == "" ]; then
+     
+     wget --no-cache -O trezor-app.AppImage https://github.com/trezor/trezor-suite/releases/download/v25.1.2/Trezor-Suite-25.1.2-linux-x86_64.AppImage
+     
+     else
+     
+     wget --no-cache -O trezor-app.AppImage https://github.com/trezor/trezor-suite/releases/download/v25.1.2/Trezor-Suite-25.1.2-linux-arm64.AppImage
+     
+     fi
+     
      
      sleep 2
      
-     chmod +x ${HOME}/Apps/Trezor/trezor-app.AppImage
+     chmod +x trezor-app.AppImage
      
      fi
 
 
+cd ${HOME}
+
 # Grub mods
-grub_mods()
+setup_grub_mods
 
 echo " "
 
@@ -543,7 +548,7 @@ fi
 ######################################
 
 
-# Install an ARM disk image to a storage device
+# Install an ARM disk image to a storage device (UNTESTED!)
 if [ "$IS_ARM" != "" ] && [ "$1" == "arm_image_to_device" ] && [ "$2" != "" ] && [ "$3" != "" ]; then
 
 URL_STATUS=$(curl --head --silent --write-out "%{http_code}" --output /dev/null ${3})
@@ -815,7 +820,7 @@ echo " "
         
 exit
 
-elif [ "$IS_ARM" != "" ]; then
+elif [ "$IS_ARM" != "" ] && [ "$1" == "sign_secureboot_modules" ]; then
 
 echo " "
 echo "${red}SECURE BOOT MODULE SETUP ON ARM DEVICES IS NOT CURRENTLY SUPPORTED BY THIS SCRIPT, EXITING..."
@@ -976,13 +981,22 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # FOR ARM DEVICES
      elif [ "$IS_ARM" != "" ]; then
      
-     # Install AND ENABLE LIGHTDM / LXDE (UNTESTED)
-     sudo dnf group install -y lightdm lxde-desktop
+     # Install AND ENABLE LIGHTDM / LXDE DESKTOP
+     
+     # REGULAR install
+     sudo dnf install -y lightdm
+
+     sleep 5     
+     
+     # GROUP install
+     sudo dnf group install -y lxde-desktop
      
      sleep 5
      
      # DISABLE gdm at boot
      sudo systemctl disable gdm.service
+     
+     sleep 5
      
      # ENABLE lightdm at boot
      # DEBUG: sudo lightdm –-test-mode --debug
@@ -996,7 +1010,7 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
 
 
 # Install gparted, for partition editing, and Fedora USB disk image creator
-sudo dnf install -y gparted liveusb-creator
+sudo dnf install --skip-broken --skip-unavailable -y gparted liveusb-creator
 
 # Install easyeffects, for sound volume leveling (compression) of TV / Movies
 sudo dnf install -y easyeffects
@@ -1012,6 +1026,7 @@ sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
 
 sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://rpm.packages.shiftkey.dev/rpm/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://rpm.packages.shiftkey.dev/gpg.key" > /etc/yum.repos.d/shiftkey-packages.repo'
 
+# No ARM support
 sudo dnf install -y github-desktop
 
 # Install darkplaces-quake, steam, AND lutris
@@ -1048,13 +1063,26 @@ sudo flatpak install -y flathub org.telegram.desktop
 sudo flatpak install -y flathub us.zoom.Zoom
 
 # Install from TRUSTED 3rd party download locations
+cd ${HOME}/Downloads
 
-# Balena Etcher
-wget --directory-prefix=${HOME}/Downloads https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
+
+     # Balena Etcher
+     if [ "$IS_ARM" == "" ]; then
+     
+     wget --no-cache -O balena-etcher.rpm https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
+     
+     else
+     
+     wget --no-cache -O balena-etcher.rpm https://github.com/Itai-Nelken/BalenaEtcher-arm/releases/download/v1.7.9/balena-etcher-electron-1.7.9+5945ab1f.aarch64.rpm
+     
+     fi
+
+
+cd ${HOME}
 
 sleep 2
 
-sudo dnf install -y $HOME/Downloads/balena-etcher-1.19.25-1.x86_64.rpm
+sudo dnf install -y ${HOME}/Downloads/balena-etcher.rpm
 
 fi
 
@@ -1067,7 +1095,7 @@ fi
 if [ "$IS_ARM" == "" ]; then
 
 # Grub mods
-grub_mods()
+setup_grub_mods
 
 # Rebuild any nvidia / virtualbox / etc boot modules, and sign them with the appropriate MOK
 sudo akmods --force --rebuild
@@ -1108,8 +1136,8 @@ fi
 #sudo firewall-cmd --set-default-zone=FedoraServer
 
 echo " "
-echo "Fedora setup has fully completed, exiting..."
-echo " "
+echo "${cyan}Fedora setup has fully completed, exiting..."
+echo "${reset} "
 
 exit
 
