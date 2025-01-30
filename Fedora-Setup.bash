@@ -1003,6 +1003,11 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # DEBUG: journalctl -b -u lightdm.service
      sudo systemctl enable lightdm.service
      
+     sleep 5
+     
+     # Needed to boot on fedora
+     sudo systemctl set-default graphical.target
+     
      # Install chromium, AND evolution email / calendar
      sudo dnf install -y --skip-broken --skip-unavailable chromium evolution
      
