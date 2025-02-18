@@ -86,6 +86,10 @@ SETUP_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 # (headless setup SKIPS installing interface-related apps / libraries)
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
 
+# On ARM devices, Auto-login LXDE Desktop
+# (ONLY USED ON *NON*-HEADLESS SETUPS [otherwise ignored])
+ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
+
 # GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
 INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc"
 
@@ -558,6 +562,10 @@ ALREADY_MOUNTED=$(findmnt | grep "${2}")
 
     if [ -f "$2" ] && [ "$ALREADY_MOUNTED" == "" ] && [ $URL_STATUS -eq 200 ]; then
 
+    echo "${red} "
+    echo "**THIS DISK IMAGING FEATURE IS UNTESTED** USE AT YOUR OWN RISK!!"
+    echo "${reset} "
+
     echo "${yellow} "
     read -n1 -s -r -p $"ANY PREVIOUS DATA ON DEVICE '${2}' WILL BE ERASED. Press Y to continue (or press N to exit)..." key
     echo "${reset} "
@@ -950,7 +958,7 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      
      # Kernel 6.12 in F41 breaks virtualbox support, fixable with kernel boot params:
      # https://www.reddit.com/r/linuxquestions/comments/1hh9k21/virtualbox_broken_after_kernel_612_fedora_41/
-     sudo grubby --update-kernel=DEFAULT --args="kvm.enable_virt_at_load=0"
+     sudo grubby --update-kernel=ALL --args="kvm.enable_virt_at_load=0"
      
          
          # If running a geforce graphics card, install the drivers / system monitor
@@ -981,6 +989,11 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # FOR ARM DEVICES
      elif [ "$IS_ARM" != "" ]; then
      
+     # Install chromium, AND evolution email / calendar
+     sudo dnf install -y --skip-broken --skip-unavailable chromium evolution
+     
+     sleep 5
+     
      # Install AND ENABLE LIGHTDM / LXDE DESKTOP
      
      # REGULAR install
@@ -1008,10 +1021,148 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # Needed to boot on fedora
      sudo systemctl set-default graphical.target
      
-     # Install chromium, AND evolution email / calendar
-     sudo dnf install -y --skip-broken --skip-unavailable chromium evolution
+     sleep 5
      
-     fi
+                   
+          # Get LXDE profile
+          if [ -d /etc/xdg/lxsession/LXDE ]; then
+                
+          # Auto-detect or set to KNOWN LXDE default
+          LXDE_PROFILE=$(ls /etc/xdg/lxsession)
+          LXDE_PROFILE=$(echo "${LXDE_PROFILE}" | xargs) # REMOVE any whitespace ON ENDS ONLY
+          LXDE_PROFILE=$(echo "${LXDE_PROFILE}" | sed "s/LXDE //") # REMOVE "LXDE "
+            
+            
+              if [[ $LXDE_PROFILE =~ " " ]] || [ -z "$LXDE_PROFILE" ]; then
+          
+               echo " "
+               echo "${red}LXDE PROFILE NOT detected, FORCING USE OF DEFAULT 'LXDE'!${reset}"
+               
+               LXDE_PROFILE="LXDE"
+          
+              fi
+          
+          
+          fi
+
+
+     echo " "
+     echo "${cyan}Configuring lightdm for user '${$TERMINAL_USERNAME}', please wait...${reset}"
+     echo " "
+            
+     # lightdm LXDE CONFIG logic...
+                
+                
+          # FIRST LOCATION CHECK, FOR MULTI-FILE CONFIG DIRECTORY SETUP
+          if [ -d /etc/lightdm/lightdm.conf.d ]; then
+                
+          # Find the PROPER config file in the checked config directory
+          LIGHTDM_CONF_DIR="/etc/lightdm/lightdm.conf.d"
+                
+	     LIGHTDM_CONFIG_FILE=$(grep -r 'user-session' $LIGHTDM_CONF_DIR | awk -F: '{print $1}')
+          LIGHTDM_CONFIG_FILE=$(echo "${LIGHTDM_CONFIG_FILE}" | xargs) # trim whitespace
+                
+          fi
+                
+                
+          # SECONDARY POSSIBLE LOCATION (IF NOT FOUND), FOR MULTI-FILE CONFIG DIRECTORY SETUP
+          if [ -z "$LIGHTDM_CONFIG_FILE" ] && [ -d /usr/share/lightdm/lightdm.conf.d ]; then
+                
+                
+          # Find the PROPER config file in the checked config directory
+          LIGHTDM_CONF_DIR="/usr/share/lightdm/lightdm.conf.d"
+                
+	     LIGHTDM_CONFIG_FILE=$(grep -r 'user-session' $LIGHTDM_CONF_DIR | awk -F: '{print $1}')
+          LIGHTDM_CONFIG_FILE=$(echo "${LIGHTDM_CONFIG_FILE}" | xargs) # trim whitespace
+                
+          fi
+                
+                
+          # DEFAULT LOCATION, IF NO MULTI-FILE CONFIG DIRECTORY SETUP DETECTED
+          if [ -z "$LIGHTDM_CONFIG_FILE" ]; then
+          LIGHTDM_CONFIG_FILE="/etc/lightdm/lightdm.conf"
+          fi
+                
+                
+          if [ ! -f "$LIGHTDM_CONFIG_FILE" ]; then
+                
+          echo "${cyan}LIGHTDM config NOT detected, CREATING DEFAULT CONFIG at: ${LIGHTDM_CONFIG_FILE}${reset}"
+                
+                
+# Don't nest / indent, or it could malform the settings            
+read -r -d '' LXDE_AUTO_LOGIN <<- EOF
+\r
+autologin-user=$TERMINAL_USERNAME
+user-session=$LXDE_PROFILE
+autologin-session=$LXDE_PROFILE
+\r
+EOF
+
+	     # Setup LXDE to run at boot
+				
+		touch $LIGHTDM_CONFIG_FILE
+					
+		echo -e "$LXDE_AUTO_LOGIN" > $LIGHTDM_CONFIG_FILE
+			 
+			    
+		elif [ -f "$LIGHTDM_CONFIG_FILE" ]; then
+                
+          echo "${cyan}LIGHTDM config detected at: $LIGHTDM_CONFIG_FILE${reset}"
+			    
+		DETECT_AUTOLOGIN=$(sudo sed -n '/autologin-user=/p' $LIGHTDM_CONFIG_FILE)
+			    
+		DETECT_AUTOLOGIN_SESSION=$(sudo sed -n '/autologin-session=/p' $LIGHTDM_CONFIG_FILE)
+			    
+			    
+			  if [ "$DETECT_AUTOLOGIN" != "" ]; then 
+                 sed -i "s/#autologin-user=.*/autologin-user=${TERMINAL_USERNAME}/g" $LIGHTDM_CONFIG_FILE
+                 sleep 2
+                 sed -i "s/autologin-user=.*/autologin-user=${TERMINAL_USERNAME}/g" $LIGHTDM_CONFIG_FILE
+                 elif [ "$DETECT_AUTOLOGIN" == "" ]; then 
+                 sudo bash -c "echo 'autologin-user=${TERMINAL_USERNAME}' >> ${LIGHTDM_CONFIG_FILE}"
+			  fi
+			        
+                
+          sleep 2
+			    
+			    
+			        if [ "$DETECT_AUTOLOGIN_SESSION" != "" ]; then 
+                       sed -i "s/#autologin-session=.*/autologin-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
+                       sleep 2
+                       sed -i "s/autologin-session=.*/autologin-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
+                       elif [ "$DETECT_AUTOLOGIN_SESSION" == "" ]; then 
+                       sudo bash -c "echo 'autologin-session=${LXDE_PROFILE}' >> ${LIGHTDM_CONFIG_FILE}"
+			        fi
+			        
+          sed -i "s/user-session=.*/user-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
+                
+                
+          else
+          echo "${red}LIGHTDM / LXDE CONFIGURATION ERROR, THEREFORE LXDE WAS #NOT# FULLY SETUP!${reset}"
+          fi
+            
+            
+     sleep 2
+            
+     # Make sure the setup config params are uncommented (active)
+     sed -i "s/^#user-session/user-session/g" $LIGHTDM_CONFIG_FILE
+     
+     
+          # Auto-login, based on script config param
+          if [ "$ARM_INTERFACE_AUTOLOGIN" == "yes" ]; then
+          sed -i "s/^#autologin-user/autologin-user/g" $LIGHTDM_CONFIG_FILE
+          sed -i "s/^#autologin-session/autologin-session/g" $LIGHTDM_CONFIG_FILE
+          else
+          sed -i "s/^autologin-user/#autologin-user/g" $LIGHTDM_CONFIG_FILE
+          sed -i "s/^autologin-session/#autologin-session/g" $LIGHTDM_CONFIG_FILE
+          fi
+          
+            
+     echo " "
+     echo "${green}lightdm / LXDE desktop setup has been configured.${reset}"
+     echo " "
+
+     fi # END ARM GUI SETUP
 
 
 # Install gparted, for partition editing, and Fedora USB disk image creator
