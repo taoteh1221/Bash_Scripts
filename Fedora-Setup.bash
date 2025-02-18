@@ -108,9 +108,6 @@ IS_ARM=$(uname -r | grep "aarch64")
 # Are we running a NVIDIA GEFORCE GPU?     
 NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
-# Are we auto-selecting the NEWEST kernel, to boot by default in grub?
-KERNEL_BOOTED_UPDATES=$(sudo sed -n '/UPDATEDEFAULT=yes/p' /etc/sysconfig/kernel)
-
 ISSUES_URL="https://github.com/taoteh1221/Fedora_Setup/issues"
 
 
@@ -272,6 +269,10 @@ setup_grub_mods() {
 
 
 ######################################
+
+
+# Are we auto-selecting the NEWEST kernel, to boot by default in grub?
+KERNEL_BOOTED_UPDATES=$(sudo sed -n '/UPDATEDEFAULT=yes/p' /etc/sysconfig/kernel)
 
 
 # Offer to freeze auto-selecting new kernels to boot, ON ARM DEVICES
