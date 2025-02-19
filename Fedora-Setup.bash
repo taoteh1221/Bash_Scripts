@@ -1145,15 +1145,15 @@ EOF
             
      sleep 2
             
-     # Make sure the setup config params are uncommented (active)
+     # Make sure the modded setup config params are uncommented (active)
      sed -i "s/^#user-session/user-session/g" $LIGHTDM_CONFIG_FILE
+     sed -i "s/^#autologin-user/autologin-user/g" $LIGHTDM_CONFIG_FILE
+     sed -i "s/^#autologin-session/autologin-session/g" $LIGHTDM_CONFIG_FILE
      
      
-          # Auto-login, based on script config param
-          if [ "$ARM_INTERFACE_AUTOLOGIN" == "yes" ]; then
-          sed -i "s/^#autologin-user/autologin-user/g" $LIGHTDM_CONFIG_FILE
-          sed -i "s/^#autologin-session/autologin-session/g" $LIGHTDM_CONFIG_FILE
-          else
+          # DISABLE Auto-login (with comment hash symbol), based on script config param
+          # (cleanest way to run this script multiple times, without cluttering lightdm's config file)
+          if [ "$ARM_INTERFACE_AUTOLOGIN" != "yes" ]; then
           sed -i "s/^autologin-user/#autologin-user/g" $LIGHTDM_CONFIG_FILE
           sed -i "s/^autologin-session/#autologin-session/g" $LIGHTDM_CONFIG_FILE
           fi
