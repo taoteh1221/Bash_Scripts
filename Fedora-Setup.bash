@@ -880,8 +880,8 @@ sudo firewall-cmd --add-service=cockpit --permanent
 fi
 
 
-# Install uboot tools (for making ARM disk images bootable)
-sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk
+# Install uboot tools / raspi imager (for making ARM disk images bootable)
+sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk rpi-imager
 
 # IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc), AND enable 'updates-testing' repo
 # https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
