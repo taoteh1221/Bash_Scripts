@@ -1116,10 +1116,8 @@ EOF
 			    
 			    
 			  if [ "$DETECT_AUTOLOGIN" != "" ]; then 
-                 sed -i "s/#autologin-user=.*/autologin-user=${TERMINAL_USERNAME}/g" $LIGHTDM_CONFIG_FILE
-                 sleep 2
                  sed -i "s/autologin-user=.*/autologin-user=${TERMINAL_USERNAME}/g" $LIGHTDM_CONFIG_FILE
-                 elif [ "$DETECT_AUTOLOGIN" == "" ]; then 
+                 else
                  sudo bash -c "echo 'autologin-user=${TERMINAL_USERNAME}' >> ${LIGHTDM_CONFIG_FILE}"
 			  fi
 			        
@@ -1127,13 +1125,11 @@ EOF
           sleep 2
 			    
 			    
-			        if [ "$DETECT_AUTOLOGIN_SESSION" != "" ]; then 
-                       sed -i "s/#autologin-session=.*/autologin-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
-                       sleep 2
-                       sed -i "s/autologin-session=.*/autologin-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
-                       elif [ "$DETECT_AUTOLOGIN_SESSION" == "" ]; then 
-                       sudo bash -c "echo 'autologin-session=${LXDE_PROFILE}' >> ${LIGHTDM_CONFIG_FILE}"
-			        fi
+			  if [ "$DETECT_AUTOLOGIN_SESSION" != "" ]; then 
+                 sed -i "s/autologin-session=.*/autologin-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
+                 else
+                 sudo bash -c "echo 'autologin-session=${LXDE_PROFILE}' >> ${LIGHTDM_CONFIG_FILE}"
+			  fi
 			        
           sed -i "s/user-session=.*/user-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
                 
