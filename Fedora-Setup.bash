@@ -1091,7 +1091,7 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
                 
                 
 # Don't nest / indent, or it could malform the settings            
-read -r -d '' LXDE_AUTO_LOGIN <<- EOF
+read -r -d '' LXDE_LOGIN <<- EOF
 \r
 autologin-user=$TERMINAL_USERNAME
 user-session=$LXDE_PROFILE
@@ -1103,7 +1103,7 @@ EOF
 				
 		touch $LIGHTDM_CONFIG_FILE
 					
-		echo -e "$LXDE_AUTO_LOGIN" > $LIGHTDM_CONFIG_FILE
+		echo -e "$LXDE_LOGIN" > $LIGHTDM_CONFIG_FILE
 			 
 			    
 		elif [ -f "$LIGHTDM_CONFIG_FILE" ]; then
