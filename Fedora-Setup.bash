@@ -917,6 +917,9 @@ sudo dnf install -y uboot-images-copr
 ####
 # Raspi Hat setup:
 # https://fedoraproject.org/w/index.php?title=Architectures/ARM/Raspberry_Pi/HATs
+####
+# Serial Console setup:
+# https://www.anintegratedworld.com/how-to-connect-raspberry-pi-to-ubuntu-via-usb-cable
 
 
 ##############################################################################
@@ -1214,6 +1217,9 @@ sudo flatpak install -y flathub org.telegram.desktop
 
 # Install Zoom (video chat client)
 sudo flatpak install -y flathub us.zoom.Zoom
+
+# Install skype (text/video chat client)
+sudo flatpak install -y flathub com.skype.Client
 
 # Install from TRUSTED 3rd party download locations
 cd ${HOME}/Downloads
