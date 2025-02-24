@@ -1133,8 +1133,14 @@ EOF
                  else
                  sudo bash -c "echo 'autologin-session=${LXDE_PROFILE}' >> ${LIGHTDM_CONFIG_FILE}"
 			  fi
-			        
+	     
+	     
+	     # Set user session to use the LXDE profile we detected
           sed -i "s/user-session=.*/user-session=${LXDE_PROFILE}/g" $LIGHTDM_CONFIG_FILE
+          
+          # Assure autologin timeout is DISABLED (WITH A ZERO)
+          sed -i "s/autologin-user-timeout=.*/autologin-user-timeout=0/g" $LIGHTDM_CONFIG_FILE
+                 
                 
                 
           else
@@ -1145,16 +1151,19 @@ EOF
      sleep 2
             
      # Make sure the modded setup config params are uncommented (active)
+     sed -i "s/^#greeter-session/greeter-session/g" $LIGHTDM_CONFIG_FILE
      sed -i "s/^#user-session/user-session/g" $LIGHTDM_CONFIG_FILE
      sed -i "s/^#autologin-user/autologin-user/g" $LIGHTDM_CONFIG_FILE
      sed -i "s/^#autologin-session/autologin-session/g" $LIGHTDM_CONFIG_FILE
+     sed -i "s/^#autologin-user-timeout/autologin-user-timeout/g" $LIGHTDM_CONFIG_FILE
      
      
           # DISABLE Auto-login (with comment hash symbol), based on script config param
           # (cleanest way to run this script multiple times, without cluttering lightdm's config file)
           if [ "$ARM_INTERFACE_AUTOLOGIN" != "yes" ]; then
           sed -i "s/^autologin-user/#autologin-user/g" $LIGHTDM_CONFIG_FILE
-          sed -i "s/^autologin-session/#autologin-session/g" $LIGHTDM_CONFIG_FILE
+          sed -i "s/^autologin-session/#autologin-session/g" $LIGHTDM_CONFIG_FILE       
+          sed -i "s/^autologin-user-timeout/#autologin-user-timeout/g" $LIGHTDM_CONFIG_FILE    
           fi
           
             
