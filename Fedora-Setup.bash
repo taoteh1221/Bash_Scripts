@@ -22,6 +22,12 @@
 
 ####
 
+# "./Fedora-Setup.bash fix_nvidia" runs this script in NVIDIA driver loading fix mode,
+
+# for new kernels, as Fedora borks persisting these values for some reason
+
+####
+
 # "./Fedora-Setup.bash secure_minimal" runs this script in SECURE / MINIMAL setup mode
 
 # (only installs BASIC essential packages, AND various crypto hardware wallet apps [to ~/Apps/ directory])
@@ -270,6 +276,37 @@ setup_grub_mods() {
 
 ######################################
 
+
+# FIX EXISTING NVIDIA DRIVER LOADING, AFTER KERNEL UPGRADES
+if [ "$1" == "fix_nvidia" ]; then
+
+echo "${green}Adding kernel CLI params for NVIDIA driver loading / nouveau blacklisting, please wait...${reset}"
+
+
+sudo grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau modprobe.blacklist=nouveau nvidia-drm.modeset=1"
+
+echo "${red} "
+read -n1 -s -r -p $"Press ANY KEY to REBOOT (to assure this update takes effect)..." key
+echo "${reset} "
+             
+             
+      if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+                 
+      echo " "
+      echo "${green}Rebooting...${reset}"
+      echo " "
+                 
+      sudo shutdown -r now
+                 
+      exit
+                 
+      fi
+             
+
+fi
+
+
+######################################
 
 # Are we auto-selecting the NEWEST kernel, to boot by default in grub?
 KERNEL_BOOTED_UPDATES=$(sudo sed -n '/UPDATEDEFAULT=yes/p' /etc/sysconfig/kernel)
@@ -1151,6 +1188,8 @@ EOF
      sleep 2
             
      # Make sure the modded setup config params are uncommented (active)
+     # greeter-session in Fedora's conf.d subdirectory does NOT support AUTOLOGIN,
+     # so we uncomment the correct value in lightdm's MAIN config (which overrides prev val)
      sed -i "s/^#greeter-session/greeter-session/g" $LIGHTDM_CONFIG_FILE
      sed -i "s/^#user-session/user-session/g" $LIGHTDM_CONFIG_FILE
      sed -i "s/^#autologin-user/autologin-user/g" $LIGHTDM_CONFIG_FILE
