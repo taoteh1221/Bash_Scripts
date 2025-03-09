@@ -426,6 +426,30 @@ sudo dnf group install -y --skip-broken --skip-unavailable c-development contain
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
 sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php flatpak engrampa p7zip p7zip-plugins unrar lm_sensors
 
+# Install smart card support
+# https://fedoramagazine.org/use-fido-u2f-security-keys-with-fedora-linux/
+# https://docs.fedoraproject.org/en-US/defensive-coding/features/Features-HSM/
+sudo dnf install -y --skip-broken --skip-unavailable pcsc-tools fido2-tools nss-tools pcsc-lite perl-pcsc pcsc-tools ccid opensc pam-u2f pamu2fcfg
+
+sleep 3
+
+# start pcscrd (smart card service)
+sudo systemctl start pcscd
+
+sleep 1
+
+# Enable pcscrd (smart card service) at boot
+sudo systemctl enable pcscd
+
+# TEST smart card detection / tokens (as user), with these commands:
+# pcsc_scan
+####
+# p11tool --list-tokens
+# Lists which module FILE is used (which needs to be linked in browser)
+# https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/pkcs11
+####
+# fido2-token -L
+
 sleep 3
 
 # Add flathub repo
