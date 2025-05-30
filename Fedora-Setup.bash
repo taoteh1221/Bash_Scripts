@@ -100,7 +100,7 @@ ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
 INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc"
 
 # Leave BLANK "", to use host's architecture
-UBOOT_DEV_BUILDS="fedora-41-aarch64"
+UBOOT_DEV_BUILDS="fedora-42-aarch64"
 
 # END Config
 
@@ -1245,6 +1245,9 @@ sudo dnf install -y easyeffects
 
 # Install 'passwords and keys' and kleopatra (GPG import / export)
 sudo dnf install -y --skip-broken --skip-unavailable seahorse kleopatra
+
+# Install DVD burning related
+sudo dnf install -y --skip-broken --skip-unavailable k3b libburn cdrskin
 
 # Install bluefish, filezilla, meld, gimp, and library needed for FileZilla Pro
 sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld gimp libxcrypt-compat
