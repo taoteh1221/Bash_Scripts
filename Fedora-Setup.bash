@@ -1260,8 +1260,11 @@ sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://r
 # No ARM support
 sudo dnf install -y github-desktop
 
-# Install darkplaces-quake, steam, AND lutris
-sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam lutris
+# Add xpadneo repo
+sudo dnf copr enable -y sentry/xpadneo
+
+# Install darkplaces-quake, steam, antimicrox, xpadneo, AND lutris
+sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam antimicrox xpadneo lutris
 
 sleep 3
 
