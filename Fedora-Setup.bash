@@ -1263,8 +1263,18 @@ sudo dnf install -y github-desktop
 # Add xpadneo repo
 sudo dnf copr enable -y sentry/xpadneo
 
-# Install darkplaces-quake, steam, antimicrox, xpadneo, AND lutris
-sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam antimicrox xpadneo lutris
+# Install darkplaces-quake, steam, kernel-modules-extra, antimicrox, xpadneo, AND lutris
+# xpadneo SEEMS LIKE IT'S NOT SUPPORTING SECUREBOOT, SO CONSIDER USING A WIRED GAMEPAD,
+# LIKE THE Logitech G F310 (WHICH HAS FEDORA / STEAM SUPPORT), TO AVOID DISABLING SYSTEM SECURITY!!!
+sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam steam-devices kernel-modules-extra antimicrox xpadneo lutris
+
+# Bluetooth gamepad compatibility
+# https://docs.fedoraproject.org/en-US/gaming/controllers/
+sed -i 's/FastConnectable =.*/FastConnectable = true/g' /etc/bluetooth/main.conf > /dev/null 2>&1
+
+sleep 1
+
+sed -i "s/^#FastConnectable =/FastConnectable =/g" /etc/bluetooth/main.conf > /dev/null 2>&1
 
 sleep 3
 
