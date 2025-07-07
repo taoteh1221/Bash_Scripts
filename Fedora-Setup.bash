@@ -1306,8 +1306,8 @@ sudo flatpak install -y flathub org.telegram.desktop
 # Install Zoom (video chat client)
 sudo flatpak install -y flathub us.zoom.Zoom
 
-# Install skype (text/video chat client)
-sudo flatpak install -y flathub com.skype.Client
+# Install MS Teams (text/video chat client)
+sudo flatpak install -y flathub com.github.IsmaelMartinez.teams_for_linux
 
 # Install from TRUSTED 3rd party download locations
 cd ${HOME}/Downloads
