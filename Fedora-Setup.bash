@@ -97,7 +97,7 @@ HEADLESS_SETUP_ONLY="no" # "no" / "yes"
 ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
 
 # GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
-INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc"
+INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc virtualization"
 
 # Leave BLANK "", to use host's architecture
 UBOOT_DEV_BUILDS="fedora-42-aarch64"
@@ -1023,11 +1023,11 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      sudo dnf install -y --skip-broken --skip-unavailable google-chrome-stable evolution
      
      # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
-     sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
+     sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager virt-xml edk2-ovmf swtpm-tools spice-vdagent
 
      sleep 3
      
-     # WINDOWS 11 virualization support
+     # WINDOWS 11 virualization support 
      # https://sysguides.com/install-a-windows-11-virtual-machine-on-kvm
      sudo wget https://fedorapeople.org/groups/virt/virtio-win/virtio-win.repo -O /etc/yum.repos.d/virtio-win.repo
 
