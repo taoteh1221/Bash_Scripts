@@ -395,6 +395,12 @@ sudo timedatectl set-local-rtc 0
 # https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
 sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
 
+sleep 2
+
+# Assure we are NOT stuck using any PREVIOUSLY-USED mirror with checksum mismatches,
+# thereby causing ABORTION of the upgrade session (due to corrupt data being detected)
+sudo dnf clean all
+
 sleep 3
 
 # Update PACKAGES (NOT operating system version)
@@ -1018,8 +1024,23 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      
      # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
      sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager edk2-ovmf swtpm-tools spice-vdagent
+
+     sleep 3
      
-     sleep 5
+     # WINDOWS 11 virualization support
+     # https://sysguides.com/install-a-windows-11-virtual-machine-on-kvm
+     sudo wget https://fedorapeople.org/groups/virt/virtio-win/virtio-win.repo -O /etc/yum.repos.d/virtio-win.repo
+
+     sleep 3
+     
+     # Refresh cache, to include the new repo
+     sudo dnf makecache
+     
+     sleep 1
+     
+     sudo dnf install virtio-win
+     
+     sleep 3
      
      # Kernel 6.12 in F41 breaks virtualbox support, fixable with kernel boot params:
      # https://www.reddit.com/r/linuxquestions/comments/1hh9k21/virtualbox_broken_after_kernel_612_fedora_41/
