@@ -403,6 +403,15 @@ sudo dnf clean all
 
 sleep 3
 
+# Rebuild cache, needed for updates, since we CLEANED IT ABOVE
+sudo dnf makecache
+
+sleep 3
+
+sudo dnf repolist
+
+sleep 3
+
 # Update PACKAGES (NOT operating system version)
 sudo dnf upgrade -y
 
