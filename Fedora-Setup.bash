@@ -440,7 +440,7 @@ sudo dnf group install -y --skip-broken --skip-unavailable c-development contain
 
 # Install samba / encryption / archiving tools, openssl, curl, php, flatpak, and nano
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
-sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php flatpak engrampa p7zip p7zip-plugins unrar lm_sensors
+sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins unrar lm_sensors
 
 # Install smart card support
 # https://fedoramagazine.org/use-fido-u2f-security-keys-with-fedora-linux/
