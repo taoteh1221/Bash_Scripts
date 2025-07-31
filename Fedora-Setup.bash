@@ -28,6 +28,10 @@
 
 ####
 
+# "./Fedora-Setup.bash system_info" runs this script to display system information
+
+####
+
 # "./Fedora-Setup.bash secure_minimal" runs this script in SECURE / MINIMAL setup mode
 
 # (only installs BASIC essential packages, AND various crypto hardware wallet apps [to ~/Apps/ directory])
@@ -280,10 +284,10 @@ setup_grub_mods() {
 # FIX EXISTING NVIDIA DRIVER LOADING, AFTER KERNEL UPGRADES
 if [ "$1" == "fix_nvidia" ]; then
 
-echo "${green}Adding kernel CLI params for NVIDIA driver loading / nouveau blacklisting, please wait...${reset}"
+echo "${green}Adding kernel CLI params for NVIDIA driver loading / nouveau,nova_core blacklisting, please wait...${reset}"
 
 
-sudo grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau modprobe.blacklist=nouveau nvidia-drm.modeset=1"
+sudo grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau,nova_core modprobe.blacklist=nouveau,nova_core nvidia-drm.modeset=1"
 
 echo "${red} "
 read -n1 -s -r -p $"Press ANY KEY to REBOOT (to assure this update takes effect)..." key
@@ -302,6 +306,22 @@ echo "${reset} "
                  
       fi
              
+
+fi
+
+
+######################################
+
+
+# DISPLAY SYSTEM INFORMATION
+if [ "$1" == "system_info" ]; then
+
+echo "${green}Showing system information, please wait...${reset}"
+
+
+inxi -Fzzx
+                 
+exit
 
 fi
 
