@@ -22,6 +22,12 @@
 
 ####
 
+# "./Fedora-Setup.bash bug_reporting" runs bug report logging, for submitting
+
+# with bugzilla bug reporting tickets
+
+####
+
 # "./Fedora-Setup.bash fix_nvidia" runs this script in NVIDIA driver loading fix mode,
 
 # for new kernels, as Fedora borks persisting these values for some reason
@@ -281,13 +287,33 @@ setup_grub_mods() {
 ######################################
 
 
+# Diagnostics, for bug reporting
+if [ "$1" == "bug_reporting" ]; then
+
+echo "${green}Running bug reporting diagnostics, please wait...${reset}"
+echo " "
+
+sudo sos report
+
+echo " "
+
+     if [ "$NVIDIA_GEFORCE" != "" ]; then
+     sudo nvidia-bug-report.sh
+     fi
+
+fi
+
+
+######################################
+
+
 # FIX EXISTING NVIDIA DRIVER LOADING, AFTER KERNEL UPGRADES
 if [ "$1" == "fix_nvidia" ]; then
 
 echo "${green}Adding kernel CLI params for NVIDIA driver loading / nouveau,nova_core blacklisting, please wait...${reset}"
 
 
-sudo grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau,nova_core modprobe.blacklist=nouveau,nova_core nvidia-drm.modeset=1"
+sudo grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau,nova_core modprobe.blacklist=nouveau,nova_core"
 
 echo "${red} "
 read -n1 -s -r -p $"Press ANY KEY to REBOOT (to assure this update takes effect)..." key
