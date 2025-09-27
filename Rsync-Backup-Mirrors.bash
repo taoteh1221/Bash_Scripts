@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Copyright 2025 GPLv3, By Mike Kilday: Mike@DragonFrugal.com (leave this copyright / attribution intact in ALL forks / copies!)
+
 
 # CONFIG - START #########################################
 
