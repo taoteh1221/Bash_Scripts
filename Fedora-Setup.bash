@@ -98,6 +98,9 @@ SECONDS_TO_SHOW_BOOT_MENU=10
 # (Fedora SERVER edition ALREADY HAS COCKPIT INSTALLED)
 SETUP_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
+# Enable xrdp remote desktop server?
+ENABLE_REMOTE_DESKTOP="no" # "no" / "yes"
+
 # Headless setup, or NOT
 # (headless setup SKIPS installing interface-related apps / libraries)
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
@@ -484,9 +487,9 @@ sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` ker
 # GROUP install dev tools / hardware support
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
-# Install samba / encryption / archiving tools, openssl, curl, php, flatpak, and nano
+# Install samba / xrdp / encryption / archiving tools, openssl, curl, php, flatpak, and nano
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
-sudo dnf install -y --skip-broken --skip-unavailable cifs-utils nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins unrar lm_sensors
+sudo dnf install -y --skip-broken --skip-unavailable cifs-utils xrdp nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins unrar lm_sensors
 
 # Install smart card support
 # https://fedoramagazine.org/use-fido-u2f-security-keys-with-fedora-linux/
@@ -518,6 +521,18 @@ sleep 3
 sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
 sleep 3
+
+
+# Enable remote desktop
+if [ "$ENABLE_REMOTE_DESKTOP" == "yes" ]; then
+
+sudo systemctl enable --now xrdp
+
+sudo firewall-cmd --add-port=3389/tcp
+
+sudo firewall-cmd --runtime-to-permanent
+
+fi
 
 
 # Install generic graphics card libraries, and other interface-related libraries
@@ -1328,6 +1343,9 @@ sudo dnf install -y --skip-broken --skip-unavailable k3b libburn cdrskin
 
 # Install bluefish, filezilla, meld, gimp, and library needed for FileZilla Pro
 sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld gimp libxcrypt-compat
+
+# Install remote desktop CLIENTS remmina / tigervnc, and rhythmbox music manager
+sudo dnf install -y --skip-broken --skip-unavailable remmina remmina-gnome-session tigervnc rhythmbox
 
 # Add official LINUX Github Desktop repo, and install it
 sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
