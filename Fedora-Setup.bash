@@ -112,8 +112,8 @@ ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
 # GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
 INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc virtualization"
 
-# Leave BLANK "", to use host's architecture
-UBOOT_DEV_BUILDS="fedora-42-aarch64"
+# Leave BLANK "", to use THIS LOCAL MACHINE's architecture for uboot dev
+UBOOT_DEV_BUILDS="fedora-43-aarch64"
 
 # END Config
 
@@ -123,6 +123,9 @@ UBOOT_DEV_BUILDS="fedora-42-aarch64"
 
 # Are we running on an ARM-based CPU?
 IS_ARM=$(uname -r | grep "aarch64")
+
+# Fedora version (NUMBER ONLY)
+FEDORA_VERSION_DETECTED=$(rpm -E %fedora)
 
 # Are we running a NVIDIA GEFORCE GPU?     
 NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
@@ -487,9 +490,9 @@ sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` ker
 # GROUP install dev tools / hardware support
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
-# Install samba / xrdp / encryption / archiving tools, openssl, curl, php, flatpak, and nano
+# Install gtkhash / encryption / archiving tools, openssl, curl, php, flatpak, and nano
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
-sudo dnf install -y --skip-broken --skip-unavailable cifs-utils xrdp nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins unrar lm_sensors
+sudo dnf install -y --skip-broken --skip-unavailable nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins p7zip-gui unrar lm_sensors gtkhash
 
 # Install smart card support
 # https://fedoramagazine.org/use-fido-u2f-security-keys-with-fedora-linux/
@@ -514,43 +517,6 @@ sudo systemctl enable pcscd
 # https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/pkcs11
 ####
 # fido2-token -L
-
-sleep 3
-
-# Add flathub repo
-sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-
-sleep 3
-
-
-# Enable remote desktop
-if [ "$ENABLE_REMOTE_DESKTOP" == "yes" ]; then
-
-sudo systemctl enable --now xrdp
-
-sudo firewall-cmd --add-port=3389/tcp
-
-sudo firewall-cmd --runtime-to-permanent
-
-fi
-
-
-# Install generic graphics card libraries, and other interface-related libraries
-if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
-sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
-fi
-
-
-sleep 3
-
-# Install cron / fire it up (will persist between reboots)
-sudo dnf install -y cronie
-
-sleep 3
-
-sudo systemctl start crond.service
-
-sleep 3
 
 # Set default (user) editors to nano
 DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
@@ -616,6 +582,10 @@ if [ "$1" == "secure_minimal" ]; then
      echo "${cyan}Installing various crypto hardware wallet apps to ${HOME}/Apps, please wait..."
      echo "${reset} "
      
+     sudo mkdir -p /etc/udev/rules.d/
+     
+     sleep 2
+     
      # Ledger crypto hardware wallet linux permissions
      wget -q -O - https://raw.githubusercontent.com/LedgerHQ/udev-rules/master/add_udev_rules.sh | sudo bash
      
@@ -658,6 +628,23 @@ if [ "$1" == "secure_minimal" ]; then
      sleep 2
      
      chmod +x trezor-app.AppImage
+     
+     # Keystone 3 Pro wallet permissions
+
+# Don't nest / indent, or it could malform the settings            
+read -r -d '' KEYSTONE_RULES <<- EOF
+\r
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="3001", MODE="0666", GROUP="plugdev"
+\r
+EOF
+	
+	touch /etc/udev/rules.d/99-keystone.rules
+					
+	echo -e "$KEYSTONE_RULES" > /etc/udev/rules.d/99-keystone.rules
+	
+	# Reload rules
+	sudo udevadm control --reload-rules
+     sudo udevadm trigger
      
      fi
 
@@ -1000,6 +987,45 @@ fi
 
 
 ######################################
+
+
+# Add flathub repo
+sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+sleep 3
+
+# samba / xrdp / ghostty / grc
+sudo dnf copr enable scottames/ghostty
+sudo dnf install -y --skip-broken --skip-unavailable ghostty grc cifs-utils xrdp
+
+# Install generic graphics card libraries, and other interface-related libraries
+if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
+sudo dnf install -y --skip-broken --skip-unavailable libglvnd-glx libglvnd-opengl libglvnd-devel qt5-qtx11extras
+fi
+
+
+sleep 3
+
+# Install cron / fire it up (will persist between reboots)
+sudo dnf install -y cronie
+
+sleep 3
+
+sudo systemctl start crond.service
+
+sleep 3
+
+
+# Enable remote desktop
+if [ "$ENABLE_REMOTE_DESKTOP" == "yes" ]; then
+
+sudo systemctl enable --now xrdp
+
+sudo firewall-cmd --add-port=3389/tcp
+
+sudo firewall-cmd --runtime-to-permanent
+
+fi
 
 
 # If we are enabling cockpit, for remote admin UI ability
