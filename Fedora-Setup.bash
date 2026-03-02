@@ -321,6 +321,19 @@ echo "${green}Adding kernel CLI params for NVIDIA driver loading / nouveau,nova_
 
 sudo grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau,nova_core modprobe.blacklist=nouveau,nova_core"
 
+sleep 1
+
+
+     # Rebuild any nvidia boot module, and sign it with the appropriate MOK
+     if [ "$IS_ARM" == "" ]; then
+
+     echo "${green}Rebuilding any nvidia boot module, and signing it with the appropriate MOK, please wait...${reset}"
+
+     sudo akmods --force --rebuild
+
+     fi
+
+
 echo "${red} "
 read -n1 -s -r -p $"Press ANY KEY to REBOOT (to assure this update takes effect)..." key
 echo "${reset} "
