@@ -40,7 +40,7 @@
 
 # "./Fedora-Setup.bash secure_minimal" runs this script in SECURE / MINIMAL setup mode
 
-# (only installs BASIC essential packages, AND various crypto hardware wallet apps [to ~/Apps/ directory])
+# (only installs BASIC essential packages, AND various crypto hardware wallet apps [to $HOME/Apps/ directory])
 # for maintaining a CLEAN / SECURE MACHINE (YOU **NEVER** DO ANY REGULAR WEB SURFING / DOWNLOADING ON!! [WINK])
 # (**HIGHLY CONSIDER** ENCRYPTING THE ROOT OR HOME PARTITION / DIRECTORIES ON THIS TYPE OF SETUP AS WELL!!)
 
@@ -532,21 +532,21 @@ sudo systemctl enable pcscd
 # fido2-token -L
 
 # Set default (user) editors to nano
-DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' ~/.bash_profile)
-DEFAULT_VISUAL_CHECK=$(sed -n '/export VISUAL/p' ~/.bash_profile)
+DEFAULT_EDITOR_CHECK=$(sed -n '/export EDITOR/p' $HOME/.bash_profile)
+DEFAULT_VISUAL_CHECK=$(sed -n '/export VISUAL/p' $HOME/.bash_profile)
 
 
 if [ "$DEFAULT_EDITOR_CHECK" == "" ]; then
-bash -c 'echo "export EDITOR=nano" >> ~/.bash_profile'
+bash -c 'echo "export EDITOR=nano" >> $HOME/.bash_profile'
 else
-sed -i 's/export EDITOR=.*/export EDITOR=nano/g' ~/.bash_profile > /dev/null 2>&1
+sed -i 's/export EDITOR=.*/export EDITOR=nano/g' $HOME/.bash_profile > /dev/null 2>&1
 fi
 
 
 if [ "$DEFAULT_VISUAL_CHECK" == "" ]; then
-bash -c 'echo "export VISUAL=nano" >> ~/.bash_profile'
+bash -c 'echo "export VISUAL=nano" >> $HOME/.bash_profile'
 else
-sed -i 's/export VISUAL=.*/export VISUAL=nano/g' ~/.bash_profile > /dev/null 2>&1
+sed -i 's/export VISUAL=.*/export VISUAL=nano/g' $HOME/.bash_profile > /dev/null 2>&1
 fi
 
 
@@ -1118,14 +1118,11 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # FOR NON-ARM DEVICES
      if [ "$IS_ARM" == "" ]; then
      
-     # Install cinnamon desktop (NO KNOWN ISSUES ON X86 'WORKSTATION' VERSION OF FEDORA)
+     # Install cinnamon desktop (WAYLAND ISSUES ON FEDORA 44!)
      sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
      
-     # Install KDE...DISABLED FOR NOW, MAY HAVE QA ISSUES ON FEDORA?
-     # (whole system got borked HARD running it daily for a couple weeks w/ NVIDIA 3070,
-     # FOR FIRST HEAVY DAILY USAGE EVER, AND USING THEIR SYSTEM UPDATER..IDK
-     # [ALSO HAD A POWERED USB HUB GETTING PROBED / HINDERING SYSTEM STARTUP...YIKES])
-     #sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
+     # Install KDE
+     sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
      
      # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
      # AND evolution email / calendar
@@ -1366,6 +1363,26 @@ EOF
      echo " "
 
      fi # END ARM GUI SETUP
+
+
+# KDE global settings
+if [ -f $HOME/.config/kdedefaults/kdeglobals ]; then
+
+KDE_DOUBLE_CLICK=$(sed -n '/DoubleClickInterval=/p' $HOME/.config/kdedefaults/kdeglobals)
+
+
+    # double-click inverval
+    # https://www.reddit.com/r/kde/comments/17ssstx/how_do_i_increase_the_doubleclick_speed_in_kde_as/
+    if [ "$KDE_DOUBLE_CLICK" != "" ]; then
+    sed -i "s/DoubleClickInterval=.*/DoubleClickInterval=1500/g" $HOME/.config/kdedefaults/kdeglobals
+    else
+    bash -c "echo 'DoubleClickInterval=1500' >> $HOME/.config/kdedefaults/kdeglobals"
+    fi
+
+
+sleep 1
+
+fi
 
 
 # Install gparted, for partition editing, and Fedora USB disk image creator
