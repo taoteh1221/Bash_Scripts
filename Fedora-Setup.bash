@@ -87,7 +87,7 @@
 WIFI_SSID_SETUP=""
 WIFI_PASSWORD_SETUP=""
 
-# Hostname (set to "" to skip updating)
+# Hostname (set to "" [or leave as "my-hostname"] to skip updating)
 PREFERRED_HOSTNAME="my-hostname"
 
 # Seconds to wait in grub, before booting up
@@ -111,9 +111,6 @@ ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
 
 # GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
 INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc virtualization"
-
-# Leave BLANK "", to use THIS LOCAL MACHINE's architecture for uboot dev
-UBOOT_DEV_BUILDS="fedora-43-aarch64"
 
 # END Config
 
@@ -330,6 +327,10 @@ sleep 1
      echo "${green}Rebuilding any nvidia boot module, and signing it with the appropriate MOK, please wait...${reset}"
 
      sudo akmods --force --rebuild
+     
+     sleep 5
+     
+     sudo dracut --force
 
      fi
 
@@ -431,7 +432,7 @@ fi
 
 
 # Set hostname
-if [ "$PREFERRED_HOSTNAME" != "" ]; then
+if [ "$PREFERRED_HOSTNAME" != "" ] && [ "$PREFERRED_HOSTNAME" != "my-hostname" ]; then
 sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
 fi     
 
@@ -498,7 +499,7 @@ sudo dnf makecache
 sleep 3
 
 # Install building / system tools
-sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods pkgconfig elfutils-libelf-devel
+sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods kmodtool mokutil pkgconfig elfutils-libelf-devel
 
 # GROUP install dev tools / hardware support
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
@@ -930,6 +931,10 @@ exit
 elif [ "$IS_ARM" == "" ] && [ "$1" == "sign_secureboot_modules" ]; then
 
 sudo akmods --force --rebuild
+     
+sleep 5
+     
+sudo dracut --force
 
 echo " "
 echo "Finished module-signing setup..."
@@ -1099,7 +1104,7 @@ sudo dnf install --enablerepo=updates-testing -y arm-image-installer
 
 # Add repo to have various FEDORA-COMPATIBLE uboot images
 # (LAST PARAMETER IS OPTIONAL [OR REQUIRED, IF INSTALLED ON A DIFFERENT DEVICE WITHOUT A MATCHING ARCHITECTURE])
-sudo dnf copr enable -y pbrobinson/u-boot $UBOOT_DEV_BUILDS
+sudo dnf copr enable -y pbrobinson/u-boot fedora-${FEDORA_VERSION_DETECTED}-aarch64
 
 
 # Get Fedora uboot images (are stored in: /usr/share/uboot/), for device flashing
@@ -1544,6 +1549,10 @@ setup_grub_mods
 
 # Rebuild any nvidia / virtualbox / etc boot modules, and sign them with the appropriate MOK
 sudo akmods --force --rebuild
+     
+sleep 5
+     
+sudo dracut --force
 
 
     if [ ! -f "${HOME}/.fedora_setup_1st_run.dat" ]; then
