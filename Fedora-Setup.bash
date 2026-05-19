@@ -1007,9 +1007,11 @@ sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub
 
 sleep 3
 
+
 # samba / xrdp / ghostty / grc
 sudo dnf copr enable scottames/ghostty
 sudo dnf install -y --skip-broken --skip-unavailable ghostty grc cifs-utils xrdp
+
 
 # Install generic graphics card libraries, and other interface-related libraries
 if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
@@ -1057,8 +1059,34 @@ sudo firewall-cmd --add-service=cockpit --permanent
 fi
 
 
+# Install automatic upgrades
+# 15 minute (OR LESS) wait for automatic REBOOT AFTER UPDATING triggers a KDE Desktop UI message 
+sudo dnf install dnf-automatic
+
+sleep 2
+
+sudo cp /usr/share/dnf5/dnf5-plugins/automatic.conf /etc/dnf/automatic.conf
+
+sleep 2
+
+sudo sed -i "s/apply_updates = .*/apply_updates = yes/g" /etc/dnf/automatic.conf
+
+sleep 2
+
+sudo sed -i "s/reboot = .*/reboot = when-needed/g" /etc/dnf/automatic.conf
+
+sleep 2
+
+sudo sed -i "s/reboot_command = .*/reboot_command = \"shutdown -r \+15 'Rebooting after applying package updates'\"/g" /etc/dnf/automatic.conf
+
+sleep 2
+
+sudo systemctl enable --now dnf-automatic.timer
+
+
 # Install uboot tools / raspi imager (for making ARM disk images bootable)
 sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk rpi-imager
+
 
 # IOT (ARM CPU) image installer (fedora raspi / radxa / other images to microsd, etc), AND enable 'updates-testing' repo
 # https://fedoraproject.org/wiki/Architectures/ARM/Installation#Arm_Image_Installer
@@ -1068,12 +1096,15 @@ sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-ar
 # https://www.redhat.com/en/blog/fedora-iot-raspberry-pi
 sudo dnf install --enablerepo=updates-testing -y arm-image-installer
 
+
 # Add repo to have various FEDORA-COMPATIBLE uboot images
 # (LAST PARAMETER IS OPTIONAL [OR REQUIRED, IF INSTALLED ON A DIFFERENT DEVICE WITHOUT A MATCHING ARCHITECTURE])
 sudo dnf copr enable -y pbrobinson/u-boot $UBOOT_DEV_BUILDS
 
+
 # Get Fedora uboot images (are stored in: /usr/share/uboot/), for device flashing
 sudo dnf install -y uboot-images-copr
+
 
 ####
 # Fedora u-boot USAGE...
@@ -1123,6 +1154,13 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      
      # Install KDE
      sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
+     
+     # Install Jami VOIP Softphone
+     sudo dnf config-manager addrepo --from-repofile=https://dl.jami.net/stable/fedora_44/jami-stable.repo
+     
+     sleep 3
+     
+     sudo dnf install jami
      
      # Install official google chrome (if you "enabled 3rd party repositories" during OS installation),
      # AND evolution email / calendar
@@ -1385,31 +1423,33 @@ sleep 1
 fi
 
 
+# Install various audio / video apps, and games
+sudo dnf install --skip-broken --skip-unavailable -y gnome-sound-recorder cheese kpat kmines elisa-player
+
+
 # Install gparted, for partition editing, and Fedora USB disk image creator
 sudo dnf install --skip-broken --skip-unavailable -y gparted liveusb-creator
+
 
 # Install easyeffects, for sound volume leveling (compression) of TV / Movies
 sudo dnf install -y easyeffects
 
+
 # Install 'passwords and keys' and kleopatra (GPG import / export)
 sudo dnf install -y --skip-broken --skip-unavailable seahorse kleopatra
+
 
 # Install DVD burning related
 sudo dnf install -y --skip-broken --skip-unavailable k3b libburn cdrskin
 
+
 # Install bluefish, filezilla, meld, gimp, and library needed for FileZilla Pro
 sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld gimp libxcrypt-compat
+
 
 # Install remote desktop CLIENTS remmina / tigervnc, and rhythmbox music manager
 sudo dnf install -y --skip-broken --skip-unavailable remmina remmina-gnome-session tigervnc rhythmbox
 
-# Add official LINUX Github Desktop repo, and install it
-sudo rpm --import https://rpm.packages.shiftkey.dev/gpg.key
-
-sudo sh -c 'echo -e "[shiftkey-packages]\nname=GitHub Desktop\nbaseurl=https://rpm.packages.shiftkey.dev/rpm/\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=https://rpm.packages.shiftkey.dev/gpg.key" > /etc/yum.repos.d/shiftkey-packages.repo'
-
-# No ARM support
-sudo dnf install -y github-desktop
 
 # Add xpadneo repo
 sudo dnf copr enable -y sentry/xpadneo
@@ -1464,14 +1504,19 @@ sudo flatpak install -y flathub com.github.IsmaelMartinez.teams_for_linux
 cd ${HOME}/Downloads
 
 
-     # Balena Etcher
+     # Balena Etcher, and Github Desktop
      if [ "$IS_ARM" == "" ]; then
      
      wget --no-cache -O balena-etcher.rpm https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
      
+     
+     wget --no-cache -O github-desktop.rpm https://github.com/shiftkey/desktop/releases/download/release-3.4.9-linux1/GitHubDesktop-linux-x86_64-3.4.9-linux1.rpm
+     
      else
      
      wget --no-cache -O balena-etcher.rpm https://github.com/Itai-Nelken/BalenaEtcher-arm/releases/download/v1.7.9/balena-etcher-electron-1.7.9+5945ab1f.aarch64.rpm
+     
+     wget --no-cache -O github-desktop.rpm https://github.com/shiftkey/desktop/releases/download/release-3.4.9-linux1/GitHubDesktop-linux-aarch64-3.4.9-linux1.rpm
      
      fi
 
@@ -1481,6 +1526,8 @@ cd ${HOME}
 sleep 2
 
 sudo dnf install -y ${HOME}/Downloads/balena-etcher.rpm
+
+sudo dnf install -y ${HOME}/Downloads/github-desktop.rpm
 
 fi
 
