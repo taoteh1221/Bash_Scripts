@@ -101,6 +101,9 @@ SETUP_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 # Enable xrdp remote desktop server?
 ENABLE_REMOTE_DESKTOP="no" # "no" / "yes"
 
+# Enable SSH login server?
+ENABLE_REMOTE_SSH="no" # "no" / "yes"
+
 # Headless setup, or NOT
 # (headless setup SKIPS installing interface-related apps / libraries)
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
@@ -431,10 +434,39 @@ fi
 ######################################
 
 
-# Set hostname
+# Assure we are NOT stuck using any PREVIOUSLY-USED mirror with checksum mismatches,
+# thereby causing ABORTION of the upgrade session (due to corrupt data being detected)
+sudo dnf clean all
+
+sleep 3
+
+# Rebuild cache, needed for updates, since we CLEANED IT ABOVE
+sudo dnf makecache
+
+sleep 3
+
+sudo dnf repolist
+
+
+# Set hostname?
 if [ "$PREFERRED_HOSTNAME" != "" ] && [ "$PREFERRED_HOSTNAME" != "my-hostname" ]; then
 sudo hostnamectl set-hostname $PREFERRED_HOSTNAME
 fi     
+
+
+# Enable SSH?
+if [ "$ENABLE_REMOTE_SSH" == "yes" ]; then
+
+sudo dnf install -y openssh-server
+
+sleep 1
+
+sudo systemctl enable --now sshd
+
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
+
+fi
 
 
 # Secure user home directory, from other accounts snooping it
@@ -458,24 +490,75 @@ timedatectl set-local-rtc 0
 # As admin too
 sudo timedatectl set-local-rtc 0
 
-# Disable sleep mode, IF NOBODY LOGS IN VIA INTERFACE
+
+# Disable sleep mode, IF NOBODY LOGS IN / IS ACTIVE VIA INTERFACE
 # https://discussion.fedoraproject.org/t/gnome-suspends-after-15-minutes-of-user-inactivity-even-on-ac-power/79801
 sudo -u gdm dbus-run-session gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout 0 > /dev/null 2>&1
 
+
+if sudo [ ! -f "/etc/systemd/sleep.conf.d/sleep.conf" ]; then
+
+sudo mkdir -p /etc/systemd/sleep.conf.d
+
 sleep 2
 
-# Assure we are NOT stuck using any PREVIOUSLY-USED mirror with checksum mismatches,
-# thereby causing ABORTION of the upgrade session (due to corrupt data being detected)
-sudo dnf clean all
+# Don't nest / indent, or it could malform the settings           
+read -r -d '' SLEEP_RULES <<- EOF
+\r
+[Sleep]
+AllowSuspend=no
+AllowSuspendThenHibernate=no
+AllowHibernation=no
+AllowHybridSleep=no
+\r
+EOF
+	
+sudo touch /etc/systemd/sleep.conf.d/sleep.conf
 
-sleep 3
+sleep 2
 
-# Rebuild cache, needed for updates, since we CLEANED IT ABOVE
-sudo dnf makecache
+sudo echo -e "$SLEEP_RULES" > /etc/systemd/sleep.conf.d/sleep.conf
 
-sleep 3
+echo " "
+echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, TO ASSURE YOUR SYSTEM WILL NOT AUTO-SUSPEND WITHOUT DESKTOP INTERFACE ACTIVITY!"
+echo "AFTER REBOOTING, RERUN this script, TO FINISH SETUP:"
+echo "${cyan}./Fedora-Setup.bash"
+echo "${reset} "
 
-sudo dnf repolist
+echo "${red} "
+read -n1 -s -r -p $"Press Y to REBOOT (or press N to exit this script)..." key
+echo "${reset} "
+        
+        
+       if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
+            
+       echo " "
+       echo "${green}Rebooting...${reset}"
+       echo " "
+            
+       sudo shutdown -r now
+            
+       else
+            
+       echo " "
+       echo "${green}Exiting...${reset}"
+       echo " "
+            
+       exit
+            
+       fi
+        
+        
+echo " "
+        
+exit
+
+else
+
+# LOGIC FOR EXISTING CONFIG GOES HERE
+
+fi
+
 
 sleep 3
 
@@ -501,12 +584,16 @@ sleep 3
 # Install building / system tools
 sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods kmodtool mokutil pkgconfig elfutils-libelf-devel
 
+# Install RPMfusion additional repos (as packages from main RPMfusion repo)
+sudo dnf install -y --skip-broken --skip-unavailable rpmfusion-free-release-tainted rpmfusion-nonfree-release-tainted
+
 # GROUP install dev tools / hardware support
 sudo dnf group install -y --skip-broken --skip-unavailable c-development container-management d-development development-tools rpm-development-tools hardware-support
 
-# Install gtkhash / encryption / archiving tools, openssl, curl, php, flatpak, and nano
+# Install ssh / gtkhash / encryption / archiving tools, openssl, curl, php, flatpak, TV tuner drivers, and more
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
-sudo dnf install -y --skip-broken --skip-unavailable nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins p7zip-gui unrar lm_sensors gtkhash
+sudo dnf install -y --skip-broken --skip-unavailable openssh-server nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins p7zip-gui unrar lm_sensors gtkhash dnf-plugins-core dvb-firmware-nonfree
+
 
 # Install smart card support
 # https://fedoramagazine.org/use-fido-u2f-security-keys-with-fedora-linux/
@@ -652,9 +739,9 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="3001", MODE="0666"
 \r
 EOF
 	
-	touch /etc/udev/rules.d/99-keystone.rules
+	sudo touch /etc/udev/rules.d/99-keystone.rules
 					
-	echo -e "$KEYSTONE_RULES" > /etc/udev/rules.d/99-keystone.rules
+	sudo echo -e "$KEYSTONE_RULES" > /etc/udev/rules.d/99-keystone.rules
 	
 	# Reload rules
 	sudo udevadm control --reload-rules
@@ -1158,9 +1245,19 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
      
      # Install KDE
-     sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins
+     sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins plasma-login-manager kcm-plasmalogin
      
-     # Install Jami VOIP Softphone
+     sleep 3
+     
+     # Disable using GDM login screen
+     # (buggier than KDE Plasma login screen)
+     # (MUST RUN AFTER KDE IS INSTALLED!)
+     sudo systemctl disable gdm.service
+     
+     # Enable KDE Plasma login screen
+     sudo systemctl enable plasmalogin.service
+
+     # Install jami voip softphone
      sudo dnf config-manager addrepo --from-repofile=https://dl.jami.net/stable/fedora_44/jami-stable.repo
      
      sleep 3
@@ -1171,6 +1268,11 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # AND evolution email / calendar
      sudo dnf config-manager --enable google-chrome
      sudo dnf install -y --skip-broken --skip-unavailable google-chrome-stable evolution
+     
+     # Install Brave Origin (FREE for Linux!)
+     sudo dnf config-manager addrepo --from-repofile=https://brave-browser-rpm-nightly.s3.brave.com/brave-browser-nightly.repo
+     
+     sudo dnf install brave-origin-nightly
      
      # Install virtualbox (from RPMfusion), Virtual Machine Manager, and associated tools
      sudo dnf install -y --skip-broken --skip-unavailable VirtualBox virt-manager virt-xml edk2-ovmf swtpm-tools spice-vdagent
@@ -1336,9 +1438,9 @@ EOF
 
 	     # Setup LXDE to run at boot
 				
-		touch $LIGHTDM_CONFIG_FILE
+		sudo touch $LIGHTDM_CONFIG_FILE
 					
-		echo -e "$LXDE_LOGIN" > $LIGHTDM_CONFIG_FILE
+		sudo echo -e "$LXDE_LOGIN" > $LIGHTDM_CONFIG_FILE
 			 
 			    
 		elif [ -f "$LIGHTDM_CONFIG_FILE" ]; then
@@ -1505,23 +1607,29 @@ sudo flatpak install -y flathub us.zoom.Zoom
 # Install MS Teams (text/video chat client)
 sudo flatpak install -y flathub com.github.IsmaelMartinez.teams_for_linux
 
+# Install Bitwarden (password manager)
+sudo flatpak install -y flathub com.bitwarden.desktop
+
 # Install from TRUSTED 3rd party download locations
 cd ${HOME}/Downloads
 
 
-     # Balena Etcher, and Github Desktop
+     # Balena Etcher, Github Desktop, Sniffnet
      if [ "$IS_ARM" == "" ]; then
      
      wget --no-cache -O balena-etcher.rpm https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
      
-     
      wget --no-cache -O github-desktop.rpm https://github.com/shiftkey/desktop/releases/download/release-3.4.9-linux1/GitHubDesktop-linux-x86_64-3.4.9-linux1.rpm
+     
+     wget --no-cache -O sniffnet.rpm https://github.com/GyulyVGC/sniffnet/releases/download/v1.5.0/Sniffnet_LinuxRPM_x86_64.rpm
      
      else
      
      wget --no-cache -O balena-etcher.rpm https://github.com/Itai-Nelken/BalenaEtcher-arm/releases/download/v1.7.9/balena-etcher-electron-1.7.9+5945ab1f.aarch64.rpm
      
      wget --no-cache -O github-desktop.rpm https://github.com/shiftkey/desktop/releases/download/release-3.4.9-linux1/GitHubDesktop-linux-aarch64-3.4.9-linux1.rpm
+     
+     wget --no-cache -O sniffnet.rpm https://github.com/GyulyVGC/sniffnet/releases/download/v1.5.0/Sniffnet_LinuxRPM_aarch64.rpm
      
      fi
 
@@ -1533,6 +1641,8 @@ sleep 2
 sudo dnf install -y ${HOME}/Downloads/balena-etcher.rpm
 
 sudo dnf install -y ${HOME}/Downloads/github-desktop.rpm
+
+sudo dnf install -y ${HOME}/Downloads/sniffnet.rpm
 
 fi
 
