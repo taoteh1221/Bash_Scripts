@@ -83,40 +83,62 @@
 
 # Config
 
+
 # Wifi setup (ADD SSID / PASSWORD, OR LEAVE BLANK [IF YOU DO *NOT* WANT WIFI AUTOMATICALLY SETUP!])
 WIFI_SSID_SETUP=""
 WIFI_PASSWORD_SETUP=""
 
+
 # Hostname (set to "" [or leave as "my-hostname"] to skip updating)
 PREFERRED_HOSTNAME="my-hostname"
 
+
 # Seconds to wait in grub, before booting up
 SECONDS_TO_SHOW_BOOT_MENU=10
+
+
+# Headless setup, or NOT
+# (headless setup SKIPS installing interface-related apps / libraries)
+HEADLESS_SETUP_ONLY="no" # "no" / "yes"
+
+
+# On ARM devices, Auto-login LXDE Desktop
+# (ONLY USED ON *NON*-HEADLESS SETUPS [otherwise ignored])
+ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
+
+
+# GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
+INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc virtualization"
+
 
 # Setup Cockpit remote admin?
 # (SETTING TO "no" WILL *NOT* UN-INSTALL ANY EXISTING INSTALLATION)
 # (Fedora SERVER edition ALREADY HAS COCKPIT INSTALLED)
 SETUP_COCKPIT_REMOTE_ADMIN="no" # "no" / "yes"
 
+
 # Enable xrdp remote desktop server?
 ENABLE_REMOTE_DESKTOP="no" # "no" / "yes"
+
 
 # Enable SSH login server?
 ENABLE_REMOTE_SSH="no" # "no" / "yes"
 
+
 # Enable Plex media server?
 ENABLE_PLEX_SERVER="no" # "no" / "yes"
 
-# Headless setup, or NOT
-# (headless setup SKIPS installing interface-related apps / libraries)
-HEADLESS_SETUP_ONLY="no" # "no" / "yes"
 
-# On ARM devices, Auto-login LXDE Desktop
-# (ONLY USED ON *NON*-HEADLESS SETUPS [otherwise ignored])
-ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
+# Mount / setup user access to a SECONDARY storage drive at:
+# /mnt/secondary_storage
+# (you select which device later, from a list of available storage
+# devices [CHOOSE CAREFULLY!])
+# (IF ENABLE_PLEX_SERVER="yes", THIS ALSO CREATES A PLEX MEDIA SERVER
+# VIDEO DIRECTORIES STRUCTURE (which you may safely ignore / delete).
+# YOU STILL NEED TO MANUALLY CONFIGURE PLEX MEDIA SERVER TO USE THEM...
+# DETAILED NOTES ARE SHOWN AFTER CREATION OF THESE DIRECTORIES [WRITE THEM DOWN])
+ENABLE_SECONDARY_STORAGE="no" # "no" / "yes"
 
-# GROUP installs to include, during INTERFACE (*NON*-HEADLESS) setups
-INTERFACE_GROUP_INSTALLS="audio 3d-printing editors games sound-and-video vlc virtualization"
 
 # END Config
 
@@ -1158,7 +1180,196 @@ fi
 # Enable Plex media server?
 # https://support.plex.tv/articles/235974187-enable-repository-updating-for-supported-linux-server-distributions/
 if [ "$ENABLE_PLEX_SERVER" == "yes" ]; then
+
+# Setup plex repo, and install plex media server
 curl -LsSf https://repo.plex.tv/scripts/setupRepo.sh | sudo bash
+
+sleep 5
+
+fi
+
+
+# Enable secondary storage?
+if [ "$ENABLE_SECONDARY_STORAGE" == "yes" ]; then
+     
+LIST_DRIVES=$(lsblk -d)    
+     
+echo "${yellow}Storage Drives Currently Available:"
+echo " "
+echo "${cyan}${LIST_DRIVES}"
+echo " "
+echo "${yellow}ENTER THE FULL DEVICE PATH to your secondary storage drive (MUST be formatted as /dev/DEVICE_NAME):"
+echo "${red}(EVERYTHING ON ANY ENTERED DEVICE DEVICE WILL BE ERASED!!! [leave blank to skip this setup])"
+echo "${reset} "
+     
+read CUSTOM_STORAGE
+echo " "
+             
+             
+      if [ -z "$CUSTOM_STORAGE" ]; then
+     
+      echo "${red}No secondary storage device selected, skipping secondary storage setup."
+      echo "${reset} "
+     
+      else
+
+
+              if [ -b "$CUSTOM_STORAGE" ]; then
+              
+              echo "${green}Using secondary storage drive:"
+              echo " "
+              echo "$CUSTOM_STORAGE"
+              echo "${reset} "
+              
+              echo " "
+              echo "${cyan}Formatting $CUSTOM_STORAGE as ext4 file system, please wait..."
+              echo "${reset} "
+              
+              # Format drive as ext4
+              sudo mkfs.ext4 $CUSTOM_STORAGE
+                   
+              sleep 5
+              
+              echo " "
+                   
+              # Try finding UUID
+              CUSTOM_UUID=$(sudo blkid -o value -s UUID $CUSTOM_STORAGE)
+              
+                   
+                   # IF not found, try PTUUID
+                   if [ -z "$CUSTOM_UUID" ]; then
+                   CUSTOM_UUID=$(sudo blkid -o value -s PTUUID $CUSTOM_STORAGE)
+                   fi
+
+                   
+                   # IF we still don't have the formatted disk's UUID, skip adding the disk
+                   if [ -z "$CUSTOM_UUID" ]; then
+                   
+                   echo " "
+                   echo "${red}Device UUID was NOT detected, skipping secondary storage setup."
+                   echo "${reset} "
+                   
+                   # IF WE HAVE ALREADY MOUNTED THIS SECONDARY STORAGE PATH, skip adding the disk
+                   elif [ -d /mnt/secondary_storage ]; then
+                   
+                   echo " "
+                   echo "${red}/mnt/secondary_storage ALREADY EXISTS on this machine, skipping secondary storage setup."
+                   echo "${reset} "
+                   
+                   # Otherwise:
+                   # Create mount path, and set permissions to access drive as the user
+                   # Add the disk in /etc/fstab for bootup mounting, and mount right now too
+                   else
+                   
+                   echo " "
+                   echo "${cyan}Setting up secondary storage, so it's mounted on the filesystem (and persists on reboot), and is accessible as user ${TERMINAL_USERNAME}, please wait..."
+                   echo "${reset} "
+                   
+                   sudo mkdir -p /mnt/secondary_storage
+                   
+                   sleep 2
+                   
+                   sudo chmod -R 750 /mnt/secondary_storage
+                   
+                   sleep 2
+                   
+                   sudo chown -R ${TERMINAL_USERNAME}:${TERMINAL_USERNAME} /mnt/secondary_storage
+                   
+                   sleep 2
+                   
+# Don't nest / indent, or it could malform the settings            
+read -r -d '' CUSTOM_FSTAB <<- EOF
+
+# Secondary storage drive
+UUID=$CUSTOM_UUID /mnt/secondary_storage ext4 defaults 0 0
+
+EOF
+	              
+	              # Persist mounting on reboot
+                   echo "$CUSTOM_FSTAB" | sudo tee -a /etc/fstab
+                   
+                   sleep 5
+
+                   # Mount right now too                   
+                   sudo mount -a
+              
+                   echo " "
+                   echo "${green}$CUSTOM_STORAGE has been pemanently setup on the file system at: /mnt/secondary_storage, and access has been pemanently granted to user: ${TERMINAL_USERNAME}"
+                   echo "${reset} "
+                   
+                        
+                        # Setup Plex media server videos directory structure,
+                        # IF it was enabled in the setup config...
+                        if [ "$ENABLE_PLEX_SERVER" == "yes" ]; then
+                        
+                        # We just mounted the drive, so wait 5 seconds
+                        sleep 5
+     
+                        CUSTOM_DIR="/mnt/secondary_storage/Plex-Videos"
+                         
+                        # Add user to plex group
+                        sudo usermod -a -G ${TERMINAL_USERNAME} plex
+                         
+                        # Add plex to user group
+                        sudo usermod -a -G plex ${TERMINAL_USERNAME}
+                         
+                         
+                        # Create the directory structure
+                        sudo mkdir -p $CUSTOM_DIR/Transcoder-Temp/Transcoding
+                        sudo mkdir -p $CUSTOM_DIR/Transcoder-Temp/Downloads
+                        sudo mkdir -p $CUSTOM_DIR/Movies
+                        sudo mkdir -p $CUSTOM_DIR/TV
+                         
+                        sleep 3
+                         
+                        # Set permissions on directory structure
+                        sudo chown -R ${TERMINAL_USERNAME}:${TERMINAL_USERNAME} $CUSTOM_DIR
+                        sudo chmod -R 750 $CUSTOM_DIR
+                        sudo setfacl -R -m g:${TERMINAL_USERNAME}:rwx $CUSTOM_DIR
+                         
+                        sleep 3
+                         
+                        # Restart media server
+                        sudo service plexmediaserver restart
+                        
+                        echo " "
+                        echo "${cyan}ADDITIONAL directories / permissions have been setup on this secondary storage, that allow you to use it for storing Plex Media Server videos, and it's temporary encoding files. Using these directories (instead of the default directories on the primary operating system storage), allows you to preserve the primary storage that the operating system uses, AND allows you to store videos on a MUCH LARGER storage drive. YOU CAN SAFELY DELETE THESE EXTRA PLEX DIRECTORIES, if you do NOT want to use them."
+                        
+                        echo " "
+                        echo "${red}ALL THAT SAID, you would still need to MANUALLY change the Plex Media Server settings, to use the subdirectories we just created inside this main directory:"
+                        echo "${CUSTOM_DIR}"
+                        echo " "
+                        echo "You can access the Plex Media Server admin interface at this address (in your web browser):"
+                        echo "http://localhost:32400"
+                        echo "(INITIALLY, you MUST ACTIVATE on the desktop of the same machine [NOT remotely...but AFTER ACTIVATING, you can remotely access it at: https://app.plex.tv])"
+                        echo " "
+                        echo "Click on your account menu after logging in (top right), choose 'Account Settings', find 'Your Media Server Name -> Manage -> Libraries' in the left menu, and add these directories:"
+                        echo "${CUSTOM_DIR}/Movies"
+                        echo "${CUSTOM_DIR}/TV"
+                        echo " "
+                        echo "Last but not least, find 'Your Media Server Name -> Settings -> Transcoder' in the same left menu, and add these directories, for the 'Transcoder temporary directory' and 'Downloads temporary directory' settings, near the top of that page:"
+                        echo "${CUSTOM_DIR}/Transcoder-Temp/Transcoding"
+                        echo "${CUSTOM_DIR}/Transcoder-Temp/Downloads"
+                        echo "${reset} "
+                        
+                        fi
+                   
+
+                   fi
+                   
+
+              else
+              
+              echo " "
+              echo "${red}$CUSTOM_STORAGE is NOT registered as a storage device, skipping secondary storage setup."
+              echo "${reset} "
+
+              fi    
+
+         
+      fi
+         
+     
 fi
 
 
