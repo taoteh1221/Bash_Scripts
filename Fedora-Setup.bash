@@ -104,6 +104,9 @@ ENABLE_REMOTE_DESKTOP="no" # "no" / "yes"
 # Enable SSH login server?
 ENABLE_REMOTE_SSH="no" # "no" / "yes"
 
+# Enable Plex media server?
+ENABLE_PLEX_SERVER="no" # "no" / "yes"
+
 # Headless setup, or NOT
 # (headless setup SKIPS installing interface-related apps / libraries)
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
@@ -502,22 +505,20 @@ sudo mkdir -p /etc/systemd/sleep.conf.d
 
 sleep 2
 
-# Don't nest / indent, or it could malform the settings           
+# Don't nest / indent, or it could malform the settings
 read -r -d '' SLEEP_RULES <<- EOF
-\r
 [Sleep]
 AllowSuspend=no
 AllowSuspendThenHibernate=no
 AllowHibernation=no
 AllowHybridSleep=no
-\r
 EOF
-	
+
 sudo touch /etc/systemd/sleep.conf.d/sleep.conf
 
 sleep 2
 
-sudo echo -e "$SLEEP_RULES" > /etc/systemd/sleep.conf.d/sleep.conf
+echo "$SLEEP_RULES" | sudo tee /etc/systemd/sleep.conf.d/sleep.conf > /dev/null
 
 echo " "
 echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, TO ASSURE YOUR SYSTEM WILL NOT AUTO-SUSPEND WITHOUT DESKTOP INTERFACE ACTIVITY!"
@@ -528,34 +529,35 @@ echo "${reset} "
 echo "${red} "
 read -n1 -s -r -p $"Press Y to REBOOT (or press N to exit this script)..." key
 echo "${reset} "
-        
-        
+
+
        if [ "$key" = 'y' ] || [ "$key" = 'Y' ]; then
-            
+
        echo " "
        echo "${green}Rebooting...${reset}"
        echo " "
-            
+
        sudo shutdown -r now
-            
+
        else
-            
+
        echo " "
        echo "${green}Exiting...${reset}"
        echo " "
-            
+
        exit
-            
+
        fi
-        
-        
+
+
 echo " "
-        
+
 exit
 
 else
 
 # LOGIC FOR EXISTING CONFIG GOES HERE
+echo "Sleep config ALREADY exits."
 
 fi
 
@@ -740,8 +742,10 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="3001", MODE="0666"
 EOF
 	
 	sudo touch /etc/udev/rules.d/99-keystone.rules
-					
-	sudo echo -e "$KEYSTONE_RULES" > /etc/udev/rules.d/99-keystone.rules
+	
+     echo "$KEYSTONE_RULES" | sudo tee /etc/udev/rules.d/99-keystone.rules > /dev/null
+     
+     sleep 2
 	
 	# Reload rules
 	sudo udevadm control --reload-rules
@@ -1151,6 +1155,13 @@ sudo firewall-cmd --add-service=cockpit --permanent
 fi
 
 
+# Enable Plex media server?
+# https://support.plex.tv/articles/235974187-enable-repository-updating-for-supported-linux-server-distributions/
+if [ "$ENABLE_PLEX_SERVER" == "yes" ]; then
+curl -LsSf https://repo.plex.tv/scripts/setupRepo.sh | sudo bash
+fi
+
+
 # Install automatic upgrades
 # 15 minute (OR LESS) wait for automatic REBOOT AFTER UPDATING triggers a KDE Desktop UI message 
 sudo dnf install dnf-automatic
@@ -1439,8 +1450,8 @@ EOF
 	     # Setup LXDE to run at boot
 				
 		sudo touch $LIGHTDM_CONFIG_FILE
-					
-		sudo echo -e "$LXDE_LOGIN" > $LIGHTDM_CONFIG_FILE
+	
+          echo "$LXDE_LOGIN" | sudo tee $LIGHTDM_CONFIG_FILE > /dev/null
 			 
 			    
 		elif [ -f "$LIGHTDM_CONFIG_FILE" ]; then
