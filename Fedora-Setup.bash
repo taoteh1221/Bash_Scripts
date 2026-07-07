@@ -84,17 +84,21 @@
 # Config
 
 
-# Wifi setup (ADD SSID / PASSWORD, OR LEAVE BLANK [IF YOU DO *NOT* WANT WIFI AUTOMATICALLY SETUP!])
-WIFI_SSID_SETUP=""
-WIFI_PASSWORD_SETUP=""
-
-
 # Hostname (set to "" [or leave as "my-hostname"] to skip updating)
 PREFERRED_HOSTNAME="my-hostname"
 
 
 # Seconds to wait in grub, before booting up
 SECONDS_TO_SHOW_BOOT_MENU=10
+
+
+# WHEN to schedule a reboot (AFTER auto-updating apps / system packages)
+SCHEDULED_REBOOT="nightly" # "nightly / "weekly" / "auto" / "off"
+
+
+# Wifi setup (ADD SSID / PASSWORD, OR LEAVE BLANK [IF YOU DO *NOT* WANT WIFI AUTOMATICALLY SETUP!])
+WIFI_SSID_SETUP=""
+WIFI_PASSWORD_SETUP=""
 
 
 # Headless setup, or NOT
@@ -1305,7 +1309,7 @@ EOF
                         # We just mounted the drive, so wait 5 seconds
                         sleep 5
      
-                        CUSTOM_DIR="/mnt/secondary_storage/Plex-Videos"
+                        CUSTOM_DIR="/mnt/secondary_storage/Plex-Media-Server"
                          
                         # Add user to plex group
                         sudo usermod -a -G ${TERMINAL_USERNAME} plex
@@ -1319,6 +1323,10 @@ EOF
                         sudo mkdir -p $CUSTOM_DIR/Transcoder-Temp/Downloads
                         sudo mkdir -p $CUSTOM_DIR/Movies
                         sudo mkdir -p $CUSTOM_DIR/TV
+                        sudo mkdir -p $CUSTOM_DIR/Music
+                        sudo mkdir -p $CUSTOM_DIR/Photos
+                        sudo mkdir -p $CUSTOM_DIR/Other
+                        sudo mkdir -p $CUSTOM_DIR/Shared
                          
                         sleep 3
                          
@@ -1346,11 +1354,27 @@ EOF
                         echo "Click on your account menu after logging in (top right), choose 'Account Settings', find 'Your Media Server Name -> Manage -> Libraries' in the left menu, and add these directories:"
                         echo "${CUSTOM_DIR}/Movies"
                         echo "${CUSTOM_DIR}/TV"
+                        echo "${CUSTOM_DIR}/Music"
+                        echo "${CUSTOM_DIR}/Photos"
+                        echo "${CUSTOM_DIR}/Other"
+                        echo "${CUSTOM_DIR}/Shared"
                         echo " "
                         echo "Last but not least, find 'Your Media Server Name -> Settings -> Transcoder' in the same left menu, and add these directories, for the 'Transcoder temporary directory' and 'Downloads temporary directory' settings, near the top of that page:"
                         echo "${CUSTOM_DIR}/Transcoder-Temp/Transcoding"
                         echo "${CUSTOM_DIR}/Transcoder-Temp/Downloads"
                         echo "${reset} "
+     
+                        echo "${yellow} "
+                        read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+                        echo "${reset} "
+                              
+                            if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+                            echo " "
+                            echo "${green}Continuing...${reset}"
+                            echo " "
+                            fi
+                              
+                        echo " "
                         
                         fi
                    
@@ -1387,15 +1411,77 @@ sudo sed -i "s/apply_updates = .*/apply_updates = yes/g" /etc/dnf/automatic.conf
 
 sleep 2
 
+
+# Automatic scheduled reboot?
+if [ "$SCHEDULED_REBOOT" == "auto" ]; then
 sudo sed -i "s/reboot = .*/reboot = when-needed/g" /etc/dnf/automatic.conf
+else
+sudo sed -i "s/reboot = .*/reboot = never/g" /etc/dnf/automatic.conf
+fi
+
 
 sleep 2
 
-sudo sed -i "s/reboot_command = .*/reboot_command = \"shutdown -r \+15 'Rebooting after applying package updates'\"/g" /etc/dnf/automatic.conf
+# Include a system notice, that we're rebooting in 15 minutes
+sudo sed -i "s/reboot_command = .*/reboot_command = \"shutdown -r \+15 'Rebooting in 15 minutes, to apply package updates'\"/g" /etc/dnf/automatic.conf
 
 sleep 2
 
 sudo systemctl enable --now dnf-automatic.timer
+
+
+# IF scheduled reboot is nightly / weekly
+if [ "$SCHEDULED_REBOOT" == "nightly" ] || [ "$SCHEDULED_REBOOT" == "weekly" ]; then
+
+
+     if [ "$SCHEDULED_REBOOT" == "nightly" ]
+     # Runs at 2:35am UTC
+     CRONJOB="35 2 * * * root shutdown -r +15 'Rebooting in 15 minutes, to apply any package updates'"  
+     CRON_DESC="nightly"
+     else 
+     # Runs at 2:35am UTC, FRIDAYS ONLY   
+     CRONJOB="35 2 * * 5 root shutdown -r +15 'Rebooting in 15 minutes, to apply any package updates'"   
+     CRON_DESC="weekly"
+     fi
+
+ 
+sudo touch /etc/cron.d/custom_reboot
+
+sleep 1
+
+# Play it safe and be sure their is a newline after this job entry
+echo "$CRONJOB\n" | sudo tee -a /etc/cron.d/custom_reboot
+                   
+          
+sleep 1
+                              
+# cron.d entries must be a permission of 644
+sudo chmod 644 /etc/cron.d/custom_reboot
+          
+sleep 1
+                              
+# cron.d entries MUST BE OWNED BY ROOT, OR THEY CRASH!
+sudo chown root:root /etc/cron.d/custom_reboot
+                              
+echo " "
+echo "${green}A ${CRON_DESC} scheduled reboot cron job has been setup in /etc/cron.d/custom_reboot:"
+echo " "
+echo "$CRONJOB"
+echo " "
+          			
+echo "${yellow} "
+read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+echo "${reset} "
+                              
+     if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+     echo " "
+     echo "${green}Continuing...${reset}"
+     echo " "
+     fi
+                              
+echo " "
+                        	
+fi
 
 
 # Install uboot tools / raspi imager (for making ARM disk images bootable)
