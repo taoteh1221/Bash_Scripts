@@ -34,6 +34,12 @@
 
 ####
 
+# "./Fedora-Setup.bash fix_kdewallet" runs this script in KDE Wallet fix mode,
+
+# if it becomes unresponsive / frozen / crashes
+
+####
+
 # "./Fedora-Setup.bash system_info" runs this script to display system information
 
 ####
@@ -93,7 +99,7 @@ SECONDS_TO_SHOW_BOOT_MENU=10
 
 
 # WHEN to schedule a reboot (AFTER auto-updating apps / system packages)
-SCHEDULED_REBOOT="nightly" # "nightly / "weekly" / "auto" / "off"
+SCHEDULED_REBOOT="nightly" # "nightly" / "weekly" / "auto" / "off"
 
 
 # Wifi setup (ADD SSID / PASSWORD, OR LEAVE BLANK [IF YOU DO *NOT* WANT WIFI AUTOMATICALLY SETUP!])
@@ -336,6 +342,59 @@ echo " "
      sudo nvidia-bug-report.sh
      fi
 
+
+echo "${green}Bug report logging finished, exiting..."
+echo "${reset} "
+
+exit
+
+fi
+
+
+######################################
+
+
+# FIX KDE WALLET, IF IT FREEZES
+if [ "$1" == "fix_kdewallet" ]; then
+
+
+     if [ -d ~/.gnupg/public-keys.d ]; then
+     
+     cd ~/.gnupg/public-keys.d/
+     
+     echo "${cyan}Cleaning up any messed up session / lock file(s) left by KDEwallet in ~/.gnupg/public-keys.d, please wait..."
+     echo "${reset} "
+     
+     sleep 1
+     
+     # Remove lock session files SAFELY
+     # (BEGINS WITH PERIOD, BUT AVOIDS . AND .. DIR STRUCTURE)
+     rm .??* > /dev/null 2>&1
+     
+     rm pubring.db.lock > /dev/null 2>&1
+     
+     sleep 2
+     
+     echo "${cyan}Listing any existing GPG Keys..."
+     echo "${reset} "
+     
+     gpg --list-secret-keys --keyid-format LONG
+     
+     cd ~/
+     
+     else
+     
+     echo "${red}Directory NOT found: ~/.gnupg/public-keys.d"
+     echo "${reset} "
+     
+     fi
+
+
+echo "${green}KDE wallet cleanup finished, exiting..."
+echo "${reset} "
+
+exit
+
 fi
 
 
@@ -395,10 +454,14 @@ fi
 if [ "$1" == "system_info" ]; then
 
 echo "${green}Showing system information, please wait...${reset}"
+echo "${reset} "
 
 
 inxi -Fzzx
-                 
+
+echo "${green}Finished, exiting..."
+echo "${reset} "
+
 exit
 
 fi
@@ -1289,7 +1352,7 @@ UUID=$CUSTOM_UUID /mnt/secondary_storage ext4 defaults 0 0
 
 EOF
 	              
-	              # Persist mounting on reboot
+	              # Persist mounting on reboot (-a flag to APPEND TO EXISTING CONFIGS!)
                    echo "$CUSTOM_FSTAB" | sudo tee -a /etc/fstab
                    
                    sleep 5
@@ -1434,14 +1497,30 @@ sudo systemctl enable --now dnf-automatic.timer
 if [ "$SCHEDULED_REBOOT" == "nightly" ] || [ "$SCHEDULED_REBOOT" == "weekly" ]; then
 
 
-     if [ "$SCHEDULED_REBOOT" == "nightly" ]
      # Runs at 2:35am UTC
-     CRONJOB="35 2 * * * root shutdown -r +15 'Rebooting in 15 minutes, to apply any package updates'"  
+     if [ "$SCHEDULED_REBOOT" == "nightly" ]; then
+     
      CRON_DESC="nightly"
-     else 
+
+# Don't nest / indent, or it could malform the settings
+# Play it safe and be sure their is a newline after this job entry
+read -r -d '' CRONJOB <<- EOF
+35 2 * * * root shutdown -r +15 'Rebooting in 15 minutes, to apply any package updates'
+
+EOF
+     
      # Runs at 2:35am UTC, FRIDAYS ONLY   
-     CRONJOB="35 2 * * 5 root shutdown -r +15 'Rebooting in 15 minutes, to apply any package updates'"   
+     else 
+     
      CRON_DESC="weekly"
+
+# Don't nest / indent, or it could malform the settings
+# Play it safe and be sure their is a newline after this job entry
+read -r -d '' CRONJOB <<- EOF
+35 2 * * 5 root shutdown -r +15 'Rebooting in 15 minutes, to apply any package updates'
+
+EOF
+     
      fi
 
  
@@ -1449,8 +1528,7 @@ sudo touch /etc/cron.d/custom_reboot
 
 sleep 1
 
-# Play it safe and be sure their is a newline after this job entry
-echo "$CRONJOB\n" | sudo tee -a /etc/cron.d/custom_reboot
+echo "$CRONJOB" | sudo tee /etc/cron.d/custom_reboot > /dev/null
                    
           
 sleep 1
