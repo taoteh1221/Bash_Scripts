@@ -112,6 +112,11 @@ WIFI_PASSWORD_SETUP=""
 HEADLESS_SETUP_ONLY="no" # "no" / "yes"
 
 
+# Use KDE Login Manager (on x86 [not ARM] devices)?
+# (ONLY USED ON *NON*-HEADLESS SETUPS [otherwise ignored])
+KDE_LOGIN_MANAGER="no" # "no" / "yes"
+
+
 # On ARM devices, Auto-login LXDE Desktop
 # (ONLY USED ON *NON*-HEADLESS SETUPS [otherwise ignored])
 ARM_INTERFACE_AUTOLOGIN="no" # "no" / "yes"
@@ -1192,7 +1197,6 @@ sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub
 
 sleep 3
 
-
 # samba / xrdp / ghostty / grc
 sudo dnf copr enable scottames/ghostty
 sudo dnf install -y --skip-broken --skip-unavailable ghostty grc cifs-utils xrdp
@@ -1461,7 +1465,6 @@ fi
 
 
 # Install automatic upgrades
-# 15 minute (OR LESS) wait for automatic REBOOT AFTER UPDATING triggers a KDE Desktop UI message 
 sudo dnf install dnf-automatic
 
 sleep 2
@@ -1486,6 +1489,7 @@ fi
 sleep 2
 
 # Include a system notice, that we're rebooting in 15 minutes
+# 15 minute (OR LESS) wait for automatic REBOOT AFTER UPDATING triggers a KDE Desktop UI message 
 sudo sed -i "s/reboot_command = .*/reboot_command = \"shutdown -r \+15 'Rebooting in 15 minutes, to apply package updates'\"/g" /etc/dnf/automatic.conf
 
 sleep 2
@@ -1562,6 +1566,14 @@ echo " "
 fi
 
 
+# Install docker
+sudo dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
+
+sleep 1
+
+sudo dnf install -y --skip-broken --skip-unavailable docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+
 # Install uboot tools / raspi imager (for making ARM disk images bootable)
 sudo dnf install -y --skip-broken --skip-unavailable uboot-tools uboot-images-armv8 rkdeveloptool gdisk rpi-imager
 
@@ -1633,15 +1645,39 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      # Install KDE
      sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins plasma-login-manager kcm-plasmalogin
      
-     sleep 3
+     echo " "
+     echo "${red}You most likely WILL run into weird issues with KDE's virtual keyboard being enabled by default, on NON-tablet devices (accent context menus showing while typing certain characters, virtual keyboard showing on laptop screen-touching, etc etc)."
+     echo " "
+     echo "You should disable this KDE virtual keyboard on NON-tablet devices (that already have a phsical keyboard), by going to the KDE 'System Settings => Keyboard => Virtual Keyboard', select 'None', and click 'Apply' at the bottom right."
+     echo "${reset} "
+
+     echo "${yellow} "
+     read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+     echo "${reset} "
+                              
+          if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+          echo " "
+          echo "${green}Continuing...${reset}"
+          echo " "
+          fi
+                              
+     echo " "
+                        
      
-     # Disable using GDM login screen
-     # (buggier than KDE Plasma login screen)
-     # (MUST RUN AFTER KDE IS INSTALLED!)
-     sudo systemctl disable gdm.service
-     
-     # Enable KDE Plasma login screen
-     sudo systemctl enable plasmalogin.service
+          if [ "$KDE_LOGIN_MANAGER" == "yes" ]; then
+               
+          sleep 3
+          
+          # Disable using GDM login screen
+          # (buggier than KDE Plasma login screen)
+          # (MUST RUN AFTER KDE IS INSTALLED!)
+          sudo systemctl disable gdm.service
+          
+          # Enable KDE Plasma login screen
+          sudo systemctl enable plasmalogin.service
+               
+          fi
+          
 
      # Install jami voip softphone
      sudo dnf config-manager addrepo --from-repofile=https://dl.jami.net/stable/fedora_44/jami-stable.repo
@@ -1996,12 +2032,17 @@ sudo flatpak install -y flathub com.github.IsmaelMartinez.teams_for_linux
 # Install Bitwarden (password manager)
 sudo flatpak install -y flathub com.bitwarden.desktop
 
+# Screencasting to TVs etc
+sudo flatpak install flathub org.gnome.NetworkDisplays
+
 # Install from TRUSTED 3rd party download locations
 cd ${HOME}/Downloads
 
 
      # Balena Etcher, Github Desktop, Sniffnet
      if [ "$IS_ARM" == "" ]; then
+
+     wget --no-cache -O docker-desktop.rpm https://desktop.docker.com/linux/main/amd64/docker-desktop-x86_64.rpm
      
      wget --no-cache -O balena-etcher.rpm https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
      
@@ -2023,6 +2064,8 @@ cd ${HOME}/Downloads
 cd ${HOME}
 
 sleep 2
+
+sudo dnf install -y ${HOME}/Downloads/docker-desktop.rpm
 
 sudo dnf install -y ${HOME}/Downloads/balena-etcher.rpm
 
