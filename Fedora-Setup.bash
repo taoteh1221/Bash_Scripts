@@ -2035,6 +2035,9 @@ sudo flatpak install -y flathub com.bitwarden.desktop
 # Screencasting to TVs etc
 sudo flatpak install flathub org.gnome.NetworkDisplays
 
+# Remote desktop
+sudo flatpak install flathub com.rustdesk.RustDesk
+
 # Install from TRUSTED 3rd party download locations
 cd ${HOME}/Downloads
 
