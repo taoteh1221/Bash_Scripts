@@ -523,7 +523,7 @@ echo "${reset} "
     echo " "
     
     fi
-
+    
 
 fi
 
@@ -574,12 +574,12 @@ sleep 2
 # Make sure our downloads directory exists, for TRUSTED 3rd party installs from github, etc
 mkdir -p $HOME/Downloads
 
-sleep 2
-
 # Make sure our apps directory exists, for custom app installs to our home directory
 mkdir -p $HOME/Apps
 
-sleep 2
+mkdir -p $HOME/Scripts/System
+
+sleep 1
 
 # Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
 # As user
@@ -672,7 +672,16 @@ sudo dnf install -y \
 
 sleep 3
 
-# Refresh cache, to include the new repos
+# REMOVE unmaintained repos (that this script previously setup)
+GITHUB_DESKTOP_REPO=$(ls /etc/yum.repos.d/* | grep -i 'shiftkey-packages')
+OLD_XPADNEO_REPO=$(ls /etc/yum.repos.d/* | grep -i 'sentry:xpadneo')
+
+sudo rm $GITHUB_DESKTOP_REPO > /dev/null 2>&1
+sudo rm $OLD_XPADNEO_REPO > /dev/null 2>&1
+
+sleep 1
+
+# Refresh cache, to include / exclude the updated repos
 sudo dnf makecache
 
 sleep 3
@@ -689,6 +698,110 @@ sudo dnf group install -y --skip-broken --skip-unavailable c-development contain
 # Install ssh / gtkhash / encryption / archiving tools, openssl, curl, php, flatpak, TV tuner drivers, and more
 # https://discussion.fedoraproject.org/t/new-old-unrar-in-fedora-36-fails/76463
 sudo dnf install -y --skip-broken --skip-unavailable openssh-server nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins p7zip-gui unrar lm_sensors gtkhash dnf-plugins-core dvb-firmware-nonfree
+
+
+# DISK MONITORING - START
+
+# Install disk monitoring support
+# https://fedoramagazine.org/monitor-your-drive-health-with-performance-co-pilot-on-fedora/
+sudo dnf install -y --skip-broken --skip-unavailable smartmontools pcp pcp-pmda-smart pcp-system-tools
+
+sleep 1
+
+cd /var/lib/pcp/pmdas/smart/
+sudo ./Install
+
+sleep 1
+
+cd ~/
+
+sudo systemctl start pmcd
+sudo systemctl enable pmcd
+
+sleep 1
+
+
+# Don't nest / indent, or it could malform the settings
+# Play it safe and be sure their is a newline after this job entry
+read -r -d '' DISK_WEAR_SCRIPT <<- EOF
+#!/bin/bash
+
+# Get disk wear
+DISK_WEAR=\$(pminfo -ft smart.nvme_attributes.percentage_used)
+
+# Get reallocated sectors
+DISK_REALLOCATED=\$(pminfo -ft smart.attributes.reallocated_sector_count.value)
+
+# 80% or higher wear (NVME)
+WEAR_PERCENT=\$(echo \$DISK_WEAR | grep -oE 'value\s[8-9][0-9]+')
+
+# 99% or lower ORIGINAL sector allocation (HDD)
+REALLOCATED_SECTORS=\$(echo \$DISK_REALLOCATED | grep -E 'value\s\b([0-9]{1,2})\b')
+
+STORAGE_CHECK_SUMMARY=\$(pmrep -s 1 smart.health)
+
+if [ "\$WEAR_PERCENT" != "" ]; then
+notify-send "High NVME Storage Wear! (over 80% WEAR)" "\${DISK_WEAR}"
+elif [ "\$REALLOCATED_SECTORS" != "" ]; then
+notify-send "HDD Disk Sectors Reallocated! (under 100% ORIGINAL)" "\${DISK_REALLOCATED}"
+else
+notify-send "Storage Check Summary" "\${STORAGE_CHECK_SUMMARY}"
+fi
+
+EOF
+
+
+touch $HOME/Scripts/System/Disk-Wear-Check.bash
+	
+echo "$DISK_WEAR_SCRIPT" | tee $HOME/Scripts/System/Disk-Wear-Check.bash > /dev/null
+
+chmod +x $HOME/Scripts/System/Disk-Wear-Check.bash
+
+
+# Every 4 hours, alert if disks are wearing out
+# Don't nest / indent, or it could malform the settings
+# Play it safe and be sure their is a newline after this job entry
+read -r -d '' DISK_WEAR_CRON <<- EOF
+0 */4 * * * $TERMINAL_USERNAME $HOME/Scripts/System/Disk-Wear-Check.bash
+
+EOF
+ 
+ 
+sudo touch /etc/cron.d/custom_disk_wear_check
+
+sleep 1
+
+echo "$DISK_WEAR_CRON" | sudo tee /etc/cron.d/custom_disk_wear_check > /dev/null
+          
+sleep 1
+                              
+# cron.d entries must be a permission of 644
+sudo chmod 644 /etc/cron.d/custom_disk_wear_check
+          
+sleep 1
+                              
+# cron.d entries MUST BE OWNED BY ROOT, OR THEY CRASH!
+sudo chown root:root /etc/cron.d/custom_disk_wear_check
+                              
+echo " "
+echo "${green}A scheduled (every 4 hours) disk wear check cron job has been setup in /etc/cron.d/custom_disk_wear_check:"
+echo " "
+echo "$DISK_WEAR_CRON"
+echo " "
+          			
+echo "${yellow} "
+read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+echo "${reset} "
+                              
+     if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+     echo " "
+     echo "${green}Continuing...${reset}"
+     echo " "
+     fi
+                              
+echo " "
+
+# DISK MONITORING - END
 
 
 # Install smart card support
