@@ -28,6 +28,12 @@
 
 ####
 
+# "./Fedora-Setup.bash find_large_files"
+
+# Above command runs this script to help you find VERY LARGE FILE USAGE on your system
+
+####
+
 # "./Fedora-Setup.bash fix_nvidia" runs this script in NVIDIA driver loading fix mode,
 
 # for new kernels, as Fedora borks persisting these values for some reason
@@ -144,13 +150,17 @@ ENABLE_REMOTE_SSH="no" # "no" / "yes"
 ENABLE_PLEX_SERVER="no" # "no" / "yes"
 
 
+# Enable Jellyfin media server?
+ENABLE_JELLYFIN_SERVER="no" # "no" / "yes"
+
+
 # Mount / setup user access to a SECONDARY storage drive at:
 # /mnt/secondary_storage
 # (you select which device later, from a list of available storage
 # devices [CHOOSE CAREFULLY!])
-# (IF ENABLE_PLEX_SERVER="yes", THIS ALSO CREATES A PLEX MEDIA SERVER
-# VIDEO DIRECTORIES STRUCTURE (which you may safely ignore / delete).
-# YOU STILL NEED TO MANUALLY CONFIGURE PLEX MEDIA SERVER TO USE THEM...
+# (IF ENABLE_PLEX_SERVER | ENABLE_JELLYFIN_SERVER ="yes", THIS ALSO CREATES MEDIA SERVER
+# DIRECTORIES STRUCTURE (which you may safely ignore / delete).
+# YOU STILL NEED TO MANUALLY CONFIGURE YOUR CHOSEN MEDIA SERVER TO USE THEM...
 # DETAILED NOTES ARE SHOWN AFTER CREATION OF THESE DIRECTORIES [WRITE THEM DOWN])
 ENABLE_SECONDARY_STORAGE="no" # "no" / "yes"
 
@@ -351,6 +361,22 @@ echo " "
 echo "${green}Bug report logging finished, exiting..."
 echo "${reset} "
 
+exit
+
+fi
+
+
+######################################
+
+
+# FIND LARGE FILES / HEAVY STORAGE USE
+if [ "$1" == "find_large_files" ]; then
+
+echo "${cyan}Finding large files / heavy storage use, please wait..."
+echo "${reset} "
+
+sudo du -ahx / 2>/dev/null | sort -rh | head -n 10
+     
 exit
 
 fi
@@ -577,7 +603,15 @@ mkdir -p $HOME/Downloads
 # Make sure our apps directory exists, for custom app installs to our home directory
 mkdir -p $HOME/Apps
 
+# Scripting
 mkdir -p $HOME/Scripts/System
+
+mkdir -p $HOME/Scripts/Backup
+
+mkdir -p $HOME/Scripts/Other
+
+# App builds
+mkdir -p $HOME/.custom_fedora_setup/builds
 
 sleep 1
 
@@ -686,9 +720,10 @@ sudo dnf makecache
 
 sleep 3
 
-# Install building / system tools
-sudo dnf install -y --skip-broken --skip-unavailable kernel-devel-`uname -r` kernel-headers kernel-devel kernel-tools gcc make dkms acpid akmods kmodtool mokutil pkgconfig elfutils-libelf-devel
-
+# Install building / system tools / bluetooth tools
+sudo dnf install -y --skip-broken --skip-unavailable kernel-tools kernel-headers kernel-devel kernel-devel-$(uname -r) gcc make dkms acpid akmods kmodtool mokutil pkgconfig elfutils-libelf-devel bluez bluez-tools
+  
+ 
 # Install RPMfusion additional repos (as packages from main RPMfusion repo)
 sudo dnf install -y --skip-broken --skip-unavailable rpmfusion-free-release-tainted rpmfusion-nonfree-release-tainted
 
@@ -700,108 +735,8 @@ sudo dnf group install -y --skip-broken --skip-unavailable c-development contain
 sudo dnf install -y --skip-broken --skip-unavailable openssh-server nano ecryptfs-utils openssl curl php php-cli php-zip php-gd flatpak engrampa p7zip p7zip-plugins p7zip-gui unrar lm_sensors gtkhash dnf-plugins-core dvb-firmware-nonfree
 
 
-# DISK MONITORING - START
-
-# Install disk monitoring support
-# https://fedoramagazine.org/monitor-your-drive-health-with-performance-co-pilot-on-fedora/
-sudo dnf install -y --skip-broken --skip-unavailable smartmontools pcp pcp-pmda-smart pcp-system-tools
-
-sleep 1
-
-cd /var/lib/pcp/pmdas/smart/
-sudo ./Install
-
-sleep 1
-
-cd ~/
-
-sudo systemctl start pmcd
-sudo systemctl enable pmcd
-
-sleep 1
-
-
-# Don't nest / indent, or it could malform the settings
-# Play it safe and be sure their is a newline after this job entry
-read -r -d '' DISK_WEAR_SCRIPT <<- EOF
-#!/bin/bash
-
-# Get disk wear
-DISK_WEAR=\$(pminfo -ft smart.nvme_attributes.percentage_used)
-
-# Get reallocated sectors
-DISK_REALLOCATED=\$(pminfo -ft smart.attributes.reallocated_sector_count.value)
-
-# 80% or higher wear (NVME)
-WEAR_PERCENT=\$(echo \$DISK_WEAR | grep -oE 'value\s[8-9][0-9]+')
-
-# 99% or lower ORIGINAL sector allocation (HDD)
-REALLOCATED_SECTORS=\$(echo \$DISK_REALLOCATED | grep -E 'value\s\b([0-9]{1,2})\b')
-
-STORAGE_CHECK_SUMMARY=\$(pmrep -s 1 smart.health)
-
-if [ "\$WEAR_PERCENT" != "" ]; then
-notify-send "High NVME Storage Wear! (over 80% WEAR)" "\${DISK_WEAR}"
-elif [ "\$REALLOCATED_SECTORS" != "" ]; then
-notify-send "HDD Disk Sectors Reallocated! (under 100% ORIGINAL)" "\${DISK_REALLOCATED}"
-else
-notify-send "Storage Check Summary" "\${STORAGE_CHECK_SUMMARY}"
-fi
-
-EOF
-
-
-touch $HOME/Scripts/System/Disk-Wear-Check.bash
-	
-echo "$DISK_WEAR_SCRIPT" | tee $HOME/Scripts/System/Disk-Wear-Check.bash > /dev/null
-
-chmod +x $HOME/Scripts/System/Disk-Wear-Check.bash
-
-
-# Every 4 hours, alert if disks are wearing out
-# Don't nest / indent, or it could malform the settings
-# Play it safe and be sure their is a newline after this job entry
-read -r -d '' DISK_WEAR_CRON <<- EOF
-0 */4 * * * $TERMINAL_USERNAME $HOME/Scripts/System/Disk-Wear-Check.bash
-
-EOF
- 
- 
-sudo touch /etc/cron.d/custom_disk_wear_check
-
-sleep 1
-
-echo "$DISK_WEAR_CRON" | sudo tee /etc/cron.d/custom_disk_wear_check > /dev/null
-          
-sleep 1
-                              
-# cron.d entries must be a permission of 644
-sudo chmod 644 /etc/cron.d/custom_disk_wear_check
-          
-sleep 1
-                              
-# cron.d entries MUST BE OWNED BY ROOT, OR THEY CRASH!
-sudo chown root:root /etc/cron.d/custom_disk_wear_check
-                              
-echo " "
-echo "${green}A scheduled (every 4 hours) disk wear check cron job has been setup in /etc/cron.d/custom_disk_wear_check:"
-echo " "
-echo "$DISK_WEAR_CRON"
-echo " "
-          			
-echo "${yellow} "
-read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
-echo "${reset} "
-                              
-     if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
-     echo " "
-     echo "${green}Continuing...${reset}"
-     echo " "
-     fi
-                              
-echo " "
-
-# DISK MONITORING - END
+# Use non-free ffmpeg (for jellyfin, or any other apps reqiuring full features)
+sudo dnf swap ffmpeg-free ffmpeg --allowerasing
 
 
 # Install smart card support
@@ -1191,6 +1126,7 @@ echo " "
 echo "${cyan}Finished MOK setup..."
 echo "${reset} "
 
+
 echo " "
 echo "${red}YOU *MUST* NOW REBOOT YOUR COMPUTER, INITIATE 'MOK Management', CHOOSE 'Enroll MOK' -> 'Continue', ENTER THE PIN YOU CREATED / REBOOT, to enable MOK module signing!"
 echo "AFTER REBOOTING, RERUN this script, TO INSTALL / ENABLE SECURE BOOT MODULES (VIRTUALBOX / NVIDIA, ETC):"
@@ -1299,6 +1235,28 @@ echo " "
 # EXIT
 exit
 
+elif [ ! -f "/etc/dkms/framework.conf.d/akmods-mok.conf" ]; then
+
+echo " "
+echo "${cyan}Adding your akmods MOK key to DKMS key usage config, please wait..."
+echo "${reset} "
+
+sudo mkdir -p /etc/dkms/framework.conf.d
+
+sleep 1
+
+# Add our akmods keys to DKMS config, for secureboot module signing
+read -r -d '' CUSTOM_DKMS_KEYS <<- EOF
+mok_signing_key="/etc/pki/akmods/private/private_key.priv"
+mok_certificate="/etc/pki/akmods/certs/public_key.der"
+EOF
+ 
+sudo touch /etc/dkms/framework.conf.d/akmods-mok.conf
+
+sleep 1
+
+echo "$CUSTOM_DKMS_KEYS" | sudo tee /etc/dkms/framework.conf.d/akmods-mok.conf > /dev/null
+
 fi
 
 
@@ -1331,6 +1289,116 @@ sleep 3
 sudo systemctl start crond.service
 
 sleep 3
+
+
+# DISK MONITORING - START
+
+# Install disk monitoring support
+# https://fedoramagazine.org/monitor-your-drive-health-with-performance-co-pilot-on-fedora/
+sudo dnf install -y --skip-broken --skip-unavailable smartmontools pcp pcp-pmda-smart pcp-system-tools
+
+sleep 1
+
+cd /var/lib/pcp/pmdas/smart/
+sudo ./Install
+
+sleep 1
+
+cd ~/
+
+sudo systemctl start pmcd
+sudo systemctl enable pmcd
+
+sleep 1
+
+
+# Don't nest / indent, or it could malform the settings
+# Play it safe and be sure their is a newline after this job entry
+read -r -d '' DISK_WEAR_SCRIPT <<- EOF
+#!/bin/bash
+
+# Get disk wear
+DISK_WEAR=\$(pminfo -ft smart.nvme_attributes.percentage_used)
+
+# Get reallocated sectors
+DISK_REALLOCATED=\$(pminfo -ft smart.attributes.reallocated_sector_count.value)
+
+# 80% or higher wear (NVME)
+WEAR_PERCENT=\$(echo \$DISK_WEAR | grep -oE 'value\s[8-9][0-9]+')
+
+# 99% or lower ORIGINAL sector allocation (HDD)
+REALLOCATED_SECTORS=\$(echo \$DISK_REALLOCATED | grep -E 'value\s\b([0-9]{1,2})\b')
+
+STORAGE_CHECK_SUMMARY=\$(pmrep -s 1 smart.health)
+
+if [ "\$WEAR_PERCENT" != "" ]; then
+notify-send "High NVME Storage Wear! (over 80% WEAR)" "\${DISK_WEAR}"
+DISK_WEAR_DETECTED="yes"
+fi
+
+if [ "\$REALLOCATED_SECTORS" != "" ]; then
+notify-send "HDD Disk Sectors Reallocated! (under 100% ORIGINAL)" "\${DISK_REALLOCATED}"
+DISK_WEAR_DETECTED="yes"
+fi
+
+if [ -z "\$DISK_WEAR_DETECTED" ]; then
+notify-send "Storage Check Summary" "\${STORAGE_CHECK_SUMMARY}"
+fi
+
+EOF
+
+
+touch $HOME/Scripts/System/Disk-Wear-Check.bash
+	
+echo "$DISK_WEAR_SCRIPT" | tee $HOME/Scripts/System/Disk-Wear-Check.bash > /dev/null
+
+chmod +x $HOME/Scripts/System/Disk-Wear-Check.bash
+
+
+# Every 4 hours, alert if disks are wearing out
+# Don't nest / indent, or it could malform the settings
+# Play it safe and be sure their is a newline after this job entry
+read -r -d '' DISK_WEAR_CRON <<- EOF
+0 */4 * * * $TERMINAL_USERNAME $HOME/Scripts/System/Disk-Wear-Check.bash
+
+EOF
+ 
+ 
+sudo touch /etc/cron.d/custom_disk_wear_check
+
+sleep 1
+
+echo "$DISK_WEAR_CRON" | sudo tee /etc/cron.d/custom_disk_wear_check > /dev/null
+          
+sleep 1
+                              
+# cron.d entries must be a permission of 644
+sudo chmod 644 /etc/cron.d/custom_disk_wear_check
+          
+sleep 1
+                              
+# cron.d entries MUST BE OWNED BY ROOT, OR THEY CRASH!
+sudo chown root:root /etc/cron.d/custom_disk_wear_check
+                              
+echo " "
+echo "${green}A scheduled (every 4 hours) disk wear check cron job has been setup in /etc/cron.d/custom_disk_wear_check:"
+echo " "
+echo "$DISK_WEAR_CRON"
+echo " "
+          			
+echo "${yellow} "
+read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+echo "${reset} "
+                              
+     if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+     echo " "
+     echo "${green}Continuing...${reset}"
+     echo " "
+     fi
+                              
+echo " "
+
+# DISK MONITORING - END
 
 
 # Enable remote desktop
@@ -1367,6 +1435,24 @@ if [ "$ENABLE_PLEX_SERVER" == "yes" ]; then
 
 # Setup plex repo, and install plex media server
 curl -LsSf https://repo.plex.tv/scripts/setupRepo.sh | sudo bash
+
+sleep 5
+
+fi
+
+
+# Enable Jellyfin media server?
+if [ "$ENABLE_JELLYFIN_SERVER" == "yes" ]; then
+
+sudo dnf install jellyfin
+
+sleep 1
+
+sudo systemctl enable --now jellyfin
+
+sudo firewall-cmd --permanent --add-service=jellyfin
+
+sudo firewall-cmd --reload
 
 sleep 5
 
@@ -1521,7 +1607,7 @@ EOF
                         sudo service plexmediaserver restart
                         
                         echo " "
-                        echo "${cyan}ADDITIONAL directories / permissions have been setup on this secondary storage, that allow you to use it for storing Plex Media Server videos, and it's temporary encoding files. Using these directories (instead of the default directories on the primary operating system storage), allows you to preserve the primary storage that the operating system uses, AND allows you to store videos on a MUCH LARGER storage drive. YOU CAN SAFELY DELETE THESE EXTRA PLEX DIRECTORIES, if you do NOT want to use them."
+                        echo "${cyan}ADDITIONAL directories / permissions have been setup on this secondary storage, that allow you to use it for storing Plex Media Server files, and it's temporary encoding files. Using these directories (instead of any default directories on the primary operating system storage), allows you to preserve the primary storage that the operating system uses, AND allows you to store media on a MUCH LARGER storage drive. YOU CAN SAFELY DELETE THESE EXTRA DIRECTORIES, if you do NOT want to use them."
                         
                         echo " "
                         echo "${red}ALL THAT SAID, you would still need to MANUALLY change the Plex Media Server settings, to use the subdirectories we just created inside this main directory:"
@@ -1556,6 +1642,70 @@ EOF
                               
                         echo " "
                         
+                        fi
+                        
+                        
+                        if [ "$ENABLE_JELLYFIN_SERVER" == "yes" ]; then
+                        
+                        # We just mounted the drive, so wait 5 seconds
+                        sleep 5
+     
+                        CUSTOM_DIR="/mnt/secondary_storage/JellyFin-Media-Server"
+                                          
+                                                  
+                        # Add user to jellyfin group
+                        sudo usermod -a -G $USER jellyfin
+                         
+                        # Add jellyfin to user group
+                        sudo usermod -a -G jellyfin $USER
+
+                         
+                        # Create the directory structure
+                        sudo mkdir -p $CUSTOM_DIR/Movies
+                        sudo mkdir -p $CUSTOM_DIR/TV
+                        sudo mkdir -p $CUSTOM_DIR/Music
+                        sudo mkdir -p $CUSTOM_DIR/Photos
+                         
+                        sleep 3
+                                                  
+                         # Set permissions
+                         sudo chown -R $USER:$USER $CUSTOM_DIR
+                         sudo chmod -R 755 $CUSTOM_DIR
+                         sudo setfacl -R -m g:$USER:rwx $CUSTOM_DIR
+                        
+                        echo " "
+                        echo "${cyan}ADDITIONAL directories / permissions have been setup on this secondary storage, that allow you to use it for storing Jellyfin Media Server files. Using these directories (instead of any default directories on the primary operating system storage), allows you to preserve the primary storage that the operating system uses, AND allows you to store media on a MUCH LARGER storage drive. YOU CAN SAFELY DELETE THESE EXTRA DIRECTORIES, if you do NOT want to use them."
+                        
+                        echo " "
+                        echo "${red}ALL THAT SAID, you would still need to MANUALLY change the Jellyfin Media Server settings, to use the subdirectories we just created inside this main directory:"
+                        echo "${CUSTOM_DIR}"
+                        echo " "
+                        echo "You can access the Jellyfin Media Server admin interface at this address (in your web browser):"
+                        echo "http://localhost:8096"
+                        echo " "
+                        echo "Use these directories as your new 'Libraries' to store you Jellyfin media files:"
+                        echo "${CUSTOM_DIR}/Movies"
+                        echo "${CUSTOM_DIR}/TV"
+                        echo "${CUSTOM_DIR}/Music"
+                        echo "${CUSTOM_DIR}/Photos"
+                        echo "${reset} "
+     
+                        echo "${yellow} "
+                        read -n1 -s -r -p $"PRESS ANY KEY to continue..." key
+                        echo "${reset} "
+                              
+                            if [ "$key" = 'y' ] || [ "$key" != 'y' ]; then
+                            echo " "
+                            echo "${green}Continuing...${reset}"
+                            echo " "
+                            fi
+                              
+                        echo " "
+                        
+
+
+
+
                         fi
                    
 
@@ -2093,13 +2243,37 @@ sudo dnf install -y --skip-broken --skip-unavailable bluefish filezilla meld gim
 sudo dnf install -y --skip-broken --skip-unavailable remmina remmina-gnome-session tigervnc rhythmbox
 
 
-# Add xpadneo repo
-sudo dnf copr enable -y sentry/xpadneo
+# Install darkplaces-quake, steam, kernel-modules-extra, antimicrox, AND lutris
+sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam steam-devices kernel-modules-extra antimicrox lutris
 
-# Install darkplaces-quake, steam, kernel-modules-extra, antimicrox, xpadneo, AND lutris
-# xpadneo SEEMS LIKE IT'S NOT SUPPORTING SECUREBOOT, SO CONSIDER USING A WIRED GAMEPAD,
-# LIKE THE Logitech G F310 (WHICH HAS FEDORA / STEAM SUPPORT), TO AVOID DISABLING SYSTEM SECURITY!!!
-sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces-quake-server steam steam-devices kernel-modules-extra antimicrox xpadneo lutris
+
+# Install / update xpadneo
+if [ ! -d ${HOME}/.custom_fedora_setup/builds/xpadneo ]; then
+
+cd ${HOME}/.custom_fedora_setup/builds
+
+git clone https://github.com/atar-axis/xpadneo.git
+
+cd xpadneo
+
+sudo ./install.sh
+
+sleep 1
+
+sudo ./configure.sh
+
+cd ~/
+
+else
+
+cd ${HOME}/.custom_fedora_setup/builds/xpadneo
+
+sudo ./update.sh
+
+cd ~/
+
+fi
+
 
 # Bluetooth gamepad compatibility
 # https://docs.fedoraproject.org/en-US/gaming/controllers/
