@@ -180,6 +180,8 @@ FEDORA_VERSION_DETECTED=$(rpm -E %fedora)
 # Are we running a NVIDIA GEFORCE GPU?     
 NVIDIA_GEFORCE=$(lspci | grep -Ei 'GeForce')
 
+WIFI_EXISTS=$(ip link show | grep -i "wl")
+
 ISSUES_URL="https://github.com/taoteh1221/Fedora_Setup/issues"
 
 
@@ -615,6 +617,7 @@ mkdir -p $HOME/.custom_fedora_setup/builds
 
 sleep 1
 
+
 # Use UTC as base clock time (to avoid clock skew, on dual boot [Win11] systems)
 # As user
 timedatectl set-local-rtc 0
@@ -786,9 +789,6 @@ fi
 
 
 # If we are setting up a wifi connection
-
-WIFI_EXISTS=$(ip link show | grep -i "wlan0")
-
 if [ "$WIFI_EXISTS" != "" ] && [ "$WIFI_SSID_SETUP" != "" ] && [ "$WIFI_PASSWORD_SETUP" != "" ]; then
 
 sudo nmcli device wifi connect "$WIFI_SSID_SETUP" password "$WIFI_PASSWORD_SETUP"
@@ -1444,7 +1444,7 @@ fi
 # Enable Jellyfin media server?
 if [ "$ENABLE_JELLYFIN_SERVER" == "yes" ]; then
 
-sudo dnf install jellyfin
+sudo dnf install -y jellyfin
 
 sleep 1
 
