@@ -1906,7 +1906,7 @@ if [ "$HEADLESS_SETUP_ONLY" == "no" ]; then
      sudo dnf install -y --skip-broken --skip-unavailable @cinnamon-desktop-environment nemo-dropbox
      
      # Install KDE
-     sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins plasma-login-manager kcm-plasmalogin
+     sudo dnf install -y --skip-broken --skip-unavailable @kde-desktop dolphin-plugins plasma-login-manager kcm-plasmalogin plasma-browser-integration kdialog
      
      echo " "
      echo "${red}You most likely WILL run into weird issues with KDE's virtual keyboard being enabled by default, on NON-tablet devices (accent context menus showing while typing certain characters, virtual keyboard showing on laptop screen-touching, etc etc)."
