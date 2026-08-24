@@ -2250,6 +2250,9 @@ sudo dnf install -y --skip-broken --skip-unavailable darkplaces-quake darkplaces
 # Install / update xpadneo
 if [ ! -d ${HOME}/.custom_fedora_setup/builds/xpadneo ]; then
 
+# Remove any conflicting package
+sudo dnf remove -y xpadneo
+
 cd ${HOME}/.custom_fedora_setup/builds
 
 git clone https://github.com/atar-axis/xpadneo.git
