@@ -2271,6 +2271,13 @@ else
 
 cd ${HOME}/.custom_fedora_setup/builds/xpadneo
 
+# Assure we have the latest code
+git reset --hard
+
+git pull
+
+sleep 1
+
 sudo ./update.sh
 
 cd ~/
