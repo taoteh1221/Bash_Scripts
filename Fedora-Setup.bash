@@ -2215,8 +2215,8 @@ sleep 1
 fi
 
 
-# Install various audio / video apps, and games
-sudo dnf install --skip-broken --skip-unavailable -y gnome-sound-recorder cheese kpat kmines elisa-player
+# Install various audio / video apps, keepassxc, and games
+sudo dnf install --skip-broken --skip-unavailable -y gnome-sound-recorder cheese keepassxc kpat kmines elisa-player
 
 
 # Install gparted, for partition editing, and Fedora USB disk image creator
@@ -2326,7 +2326,7 @@ sudo flatpak install -y flathub us.zoom.Zoom
 # Install MS Teams (text/video chat client)
 sudo flatpak install -y flathub com.github.IsmaelMartinez.teams_for_linux
 
-# Install Bitwarden (password manager)
+# Install Bitwarden (CLOUD password manager)
 sudo flatpak install -y flathub com.bitwarden.desktop
 
 # Screencasting to TVs etc
@@ -2334,6 +2334,7 @@ sudo flatpak install flathub org.gnome.NetworkDisplays
 
 # Remote desktop
 sudo flatpak install flathub com.rustdesk.RustDesk
+
 
 # Install from TRUSTED 3rd party download locations
 cd ${HOME}/Downloads
@@ -2344,11 +2345,11 @@ cd ${HOME}/Downloads
 
      wget --no-cache -O docker-desktop.rpm https://desktop.docker.com/linux/main/amd64/docker-desktop-x86_64.rpm
      
-     wget --no-cache -O balena-etcher.rpm https://github.com/balena-io/etcher/releases/download/v1.19.25/balena-etcher-1.19.25-1.x86_64.rpm
+     wget --no-cache -O balena-etcher.rpm https://github.com/balena-io/etcher/releases/download/v2.1.9/balena-etcher-2.1.9-1.x86_64.rpm
      
      wget --no-cache -O github-desktop.rpm https://github.com/shiftkey/desktop/releases/download/release-3.4.9-linux1/GitHubDesktop-linux-x86_64-3.4.9-linux1.rpm
      
-     wget --no-cache -O sniffnet.rpm https://github.com/GyulyVGC/sniffnet/releases/download/v1.5.0/Sniffnet_LinuxRPM_x86_64.rpm
+     wget --no-cache -O sniffnet.rpm https://github.com/GyulyVGC/sniffnet/releases/download/v1.5.1/Sniffnet_LinuxRPM_x86_64.rpm
      
      else
      
@@ -2356,7 +2357,7 @@ cd ${HOME}/Downloads
      
      wget --no-cache -O github-desktop.rpm https://github.com/shiftkey/desktop/releases/download/release-3.4.9-linux1/GitHubDesktop-linux-aarch64-3.4.9-linux1.rpm
      
-     wget --no-cache -O sniffnet.rpm https://github.com/GyulyVGC/sniffnet/releases/download/v1.5.0/Sniffnet_LinuxRPM_aarch64.rpm
+     wget --no-cache -O sniffnet.rpm https://github.com/GyulyVGC/sniffnet/releases/download/v1.5.1/Sniffnet_LinuxRPM_aarch64.rpm
      
      fi
 
