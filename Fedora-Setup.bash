@@ -2300,13 +2300,20 @@ sed -i "s/^#FastConnectable =/FastConnectable =/g" /etc/bluetooth/main.conf > /d
 
 sleep 3
 
-mkdir -p $HOME/Apps/Quake-Darkplaces
+mkdir -p $HOME/Apps/Quake-Darkplaces/id1
 
 sleep 2
 
 ln -s /usr/bin/darkplaces-quake-sdl $HOME/Apps/Quake-Darkplaces/darkplaces-quake-sdl
 
 ln -s /usr/bin/darkplaces-quake-glx $HOME/Apps/Quake-Darkplaces/darkplaces-quake-glx
+
+
+# Link quake's id1 directory in ~/.darkplaces
+if [ ! -d ${HOME}/.darkplaces/id1 ] && [ ! -L ${HOME}/.darkplaces/id1 ]; then
+ln -s $HOME/Apps/Quake-Darkplaces/id1 $HOME/.darkplaces/id1
+fi
+
 
 # Install flatpaks, AFTER video drivers (so any proper video dependencies are installed)
 
