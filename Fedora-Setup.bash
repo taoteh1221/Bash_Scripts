@@ -105,7 +105,7 @@ SECONDS_TO_SHOW_BOOT_MENU=10
 
 
 # WHEN to schedule a reboot (AFTER auto-updating apps / system packages)
-SCHEDULED_REBOOT="nightly" # "nightly" / "weekly" / "auto" / "off"
+SCHEDULED_REBOOT="off" # "nightly" / "weekly" / "auto" / "off"
 
 
 # Wifi setup (ADD SSID / PASSWORD, OR LEAVE BLANK [IF YOU DO *NOT* WANT WIFI AUTOMATICALLY SETUP!])
@@ -1791,25 +1791,25 @@ EOF
      fi
 
  
-sudo touch /etc/cron.d/custom_reboot
+sudo touch /etc/cron.d/fedora_setup_custom_reboot
 
 sleep 1
 
-echo "$CRONJOB" | sudo tee /etc/cron.d/custom_reboot > /dev/null
+echo "$CRONJOB" | sudo tee /etc/cron.d/fedora_setup_custom_reboot > /dev/null
                    
           
 sleep 1
                               
 # cron.d entries must be a permission of 644
-sudo chmod 644 /etc/cron.d/custom_reboot
+sudo chmod 644 /etc/cron.d/fedora_setup_custom_reboot
           
 sleep 1
                               
 # cron.d entries MUST BE OWNED BY ROOT, OR THEY CRASH!
-sudo chown root:root /etc/cron.d/custom_reboot
+sudo chown root:root /etc/cron.d/fedora_setup_custom_reboot
                               
 echo " "
-echo "${green}A ${CRON_DESC} scheduled reboot cron job has been setup in /etc/cron.d/custom_reboot:"
+echo "${green}A ${CRON_DESC} scheduled reboot cron job has been setup in /etc/cron.d/fedora_setup_custom_reboot:"
 echo " "
 echo "$CRONJOB"
 echo " "
@@ -1825,7 +1825,12 @@ echo "${reset} "
      fi
                               
 echo " "
-                        	
+
+# Otherwise, make sure our custom reboot is removed
+elif [ "$SCHEDULED_REBOOT" == "off" ]; then
+
+sudo rm /etc/cron.d/fedora_setup_custom_reboot > /dev/null 2>&1
+           	
 fi
 
 
@@ -2325,9 +2330,6 @@ sudo flatpak install -y flathub us.zoom.Zoom
 
 # Install MS Teams (text/video chat client)
 sudo flatpak install -y flathub com.github.IsmaelMartinez.teams_for_linux
-
-# Install Bitwarden (CLOUD password manager)
-sudo flatpak install -y flathub com.bitwarden.desktop
 
 # Screencasting to TVs etc
 sudo flatpak install flathub org.gnome.NetworkDisplays
