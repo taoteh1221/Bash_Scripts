@@ -2311,7 +2311,13 @@ ln -s /usr/bin/darkplaces-quake-glx $HOME/Apps/Quake-Darkplaces/darkplaces-quake
 
 # Link quake's id1 directory in ~/.darkplaces
 if [ ! -d ${HOME}/.darkplaces/id1 ] && [ ! -L ${HOME}/.darkplaces/id1 ]; then
+
+mkdir -p $HOME/.darkplaces
+
+sleep 1
+
 ln -s $HOME/Apps/Quake-Darkplaces/id1 $HOME/.darkplaces/id1
+
 fi
 
 
