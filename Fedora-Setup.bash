@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# Copyright 2024-2025 GPLv3, by Mike Kilday: Mike@DragonFrugal.com (leave this copyright / attribution intact in ALL forks / copies!)
+# Copyright 2024-2027 GPLv3, by Mike Kilday: Mike@DragonFrugal.com (leave this copyright / attribution intact in ALL forks / copies!)
+
+
+# Version of this script
+APP_VERSION="1.10.02" # 2026/NOVEMBER/24TH
+
 
 ####
 
